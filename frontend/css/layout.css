@@ -84,12 +84,6 @@ body {
     color: var(--color-white);
 }
 
-.nav-icon {
-    font-size: 1.1rem;
-    width: 1.5rem;
-    text-align: center;
-}
-
 /* Бутон за изход в дъното на sidebar */
 .nav-footer {
     padding: 1rem 1.25rem;

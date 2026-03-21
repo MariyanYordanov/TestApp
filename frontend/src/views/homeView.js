@@ -86,9 +86,9 @@ function buildActions() {
 // Три feature карти с описание на платформата
 function buildFeatures() {
     const features = [
-        { icon: '📝', title: 'Лесно създаване', text: 'Wizard с 3 стъпки — заглавие, категории, въпроси.' },
-        { icon: '🔗', title: 'Споделяне с линк', text: 'Учениците получават 8-символен код. Без регистрация.' },
-        { icon: '📊', title: 'Резултати веднага', text: 'Учителят вижда резултатите в реално време.' },
+        { title: 'Лесно създаване', text: 'Wizard с 3 стъпки — заглавие, категории, въпроси.' },
+        { title: 'Споделяне с линк', text: 'Учениците получават 8-символен код. Без регистрация.' },
+        { title: 'Резултати веднага', text: 'Учителят вижда резултатите в реално време.' },
     ];
 
     const grid = document.createElement('div');
@@ -98,17 +98,12 @@ function buildFeatures() {
         const card = document.createElement('div');
         card.className = 'feature-card';
 
-        const icon = document.createElement('span');
-        icon.className = 'feature-icon';
-        icon.textContent = f.icon;
-
         const title = document.createElement('h3');
         title.textContent = f.title;
 
         const text = document.createElement('p');
         text.textContent = f.text;
 
-        card.appendChild(icon);
         card.appendChild(title);
         card.appendChild(text);
         grid.appendChild(card);

@@ -12,10 +12,10 @@ import { isAuthenticated, logout, getUser } from '../services/auth.js';
 
 // Дефиниция на навигационните елементи
 const NAV_ITEMS = [
-    { path: '/dashboard',  label: 'Моите тестове', icon: '📝' },
-    { path: '/categories', label: 'Категории',      icon: '📂' },
-    { path: '/statistics', label: 'Статистика',     icon: '📊' },
-    { path: '/account',    label: 'Акаунт',         icon: '👤' },
+    { path: '/dashboard',  label: 'Моите тестове' },
+    { path: '/categories', label: 'Категории' },
+    { path: '/statistics', label: 'Статистика' },
+    { path: '/account',    label: 'Акаунт' },
 ];
 
 // Регистрира middleware в page.js — при всяка смяна на route обновява nav-а
@@ -77,14 +77,9 @@ function buildNavList(currentPath) {
         const a = document.createElement('a');
         a.href = item.path;
 
-        const icon = document.createElement('span');
-        icon.className = 'nav-icon';
-        icon.textContent = item.icon; // emoji — статично
-
         const label = document.createElement('span');
         label.textContent = item.label; // статично — не идва от потребител
 
-        a.appendChild(icon);
         a.appendChild(label);
         li.appendChild(a);
         ul.appendChild(li);
