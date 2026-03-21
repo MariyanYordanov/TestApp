@@ -1,0 +1,167 @@
+/* ============================================================
+   Стъпка 3 — layout.css
+   Оформление на страницата: sidebar + main area.
+   Зависи от CSS custom properties дефинирани в main.css.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Основна решетка (grid): sidebar | main
+   На мобилни устройства sidebar е скрит.
+   ------------------------------------------------------------ */
+body {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-rows: 1fr;
+    min-height: 100vh;
+}
+
+/* ------------------------------------------------------------
+   Sidebar — странична навигация за учителя
+   Скрит по подразбиране; показва се когато учителят е влязъл.
+   ------------------------------------------------------------ */
+#sidebar {
+    grid-column: 1;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: none; /* nav.js го показва след login */
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+}
+
+/* Когато sidebar е скрит, main заема целия екран */
+#sidebar[style*="display: none"] ~ #main,
+#sidebar:not([style]) ~ #main {
+    grid-column: 1 / -1;
+}
+
+/* Заглавие на sidebar */
+.nav-header {
+    padding: 1.5rem 1.25rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.nav-header h2 {
+    font-size: var(--font-size-xl);
+    color: var(--color-white);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.nav-user {
+    font-size: var(--font-size-sm);
+    color: var(--sidebar-text);
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+/* Списък с навигационни елементи */
+.nav-list {
+    flex: 1;
+    padding: 0.75rem 0;
+}
+
+.nav-item a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1.25rem;
+    color: var(--sidebar-text);
+    font-size: var(--font-size-sm);
+    transition: background var(--transition), color var(--transition);
+}
+
+.nav-item a:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--color-white);
+}
+
+/* Активният route е маркиран с различен цвят */
+.nav-item.active a {
+    background: var(--sidebar-active);
+    color: var(--color-white);
+}
+
+.nav-icon {
+    font-size: 1.1rem;
+    width: 1.5rem;
+    text-align: center;
+}
+
+/* Бутон за изход в дъното на sidebar */
+.nav-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.btn-logout {
+    width: 100%;
+    padding: 0.5rem;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: var(--sidebar-text);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    transition: background var(--transition);
+}
+
+.btn-logout:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--color-white);
+}
+
+/* ------------------------------------------------------------
+   Main — основна съдържателна зона
+   ------------------------------------------------------------ */
+#main {
+    grid-column: 2;
+    padding: 2rem;
+    overflow-y: auto;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* На публичните страници (home, login) main е center-aligned */
+#main.centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+/* ------------------------------------------------------------
+   Контейнер за toast нотификации — долу вдясно
+   ------------------------------------------------------------ */
+#notifications {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* ------------------------------------------------------------
+   Responsive — таблет и мобилен (под 768px)
+   ------------------------------------------------------------ */
+@media (max-width: 768px) {
+    body {
+        grid-template-columns: 1fr;
+    }
+
+    #sidebar {
+        display: none !important;
+    }
+
+    #main {
+        grid-column: 1;
+        padding: 1rem;
+    }
+}

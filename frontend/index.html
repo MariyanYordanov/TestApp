@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Стъпка 2 — Единственият HTML файл на приложението (SPA shell).
+     Цялото съдържание се рендира динамично в <main id="main">.
+     Навигацията в <nav id="sidebar"> се управлява от nav.js. -->
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TestApp — Платформа за тестове</title>
+
+    <!-- Стилове — редът е важен: main → layout → components → test-taking -->
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./css/layout.css">
+    <link rel="stylesheet" href="./css/components.css">
+    <link rel="stylesheet" href="./css/test-taking.css">
+</head>
+<body>
+
+    <!-- Странична навигация — видима само за влезли учители -->
+    <nav id="sidebar"></nav>
+
+    <!-- Основна зона — тук всеки view рендира своето съдържание -->
+    <main id="main">
+        <p class="loading">Зареждане...</p>
+    </main>
+
+    <!-- Контейнер за toast нотификации (success / error / info) -->
+    <div id="notifications"></div>
+
+    <!-- Входна точка на приложението — ES module -->
+    <script type="module" src="./src/app.js"></script>
+
+</body>
+</html>
