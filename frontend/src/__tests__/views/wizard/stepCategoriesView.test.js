@@ -1,27 +1,19 @@
 // Тестове за views/wizard/stepCategoriesView.js
+// Стъпка 43 — stepCategoriesView.test.js
+// Обновени: categories се подава като 4-ти параметър; MOCK_CATEGORIES е премахнат.
 
-const { renderStepCategories, validateStep2, MOCK_CATEGORIES } = await import('../../../views/wizard/stepCategoriesView.js');
+const { renderStepCategories, validateStep2 } = await import('../../../views/wizard/stepCategoriesView.js');
 
 // ---------------------------------------------------------------------------
-// MOCK_CATEGORIES — константа
+// Тестови категории — заместват MOCK_CATEGORIES
 // ---------------------------------------------------------------------------
-
-describe('MOCK_CATEGORIES — дефиниция', () => {
-    it('е масив', () => {
-        expect(Array.isArray(MOCK_CATEGORIES)).toBe(true);
-    });
-
-    it('съдържа поне 1 категория', () => {
-        expect(MOCK_CATEGORIES.length).toBeGreaterThan(0);
-    });
-
-    it('всяка категория има id и name', () => {
-        MOCK_CATEGORIES.forEach(cat => {
-            expect(cat).toHaveProperty('id');
-            expect(cat).toHaveProperty('name');
-        });
-    });
-});
+const TEST_CATEGORIES = [
+    { id: 'cat-1', name: 'Математика' },
+    { id: 'cat-2', name: 'История' },
+    { id: 'cat-3', name: 'Биология' },
+    { id: 'cat-4', name: 'JavaScript' },
+    { id: 'cat-5', name: 'C#' },
+];
 
 // ---------------------------------------------------------------------------
 // validateStep2
@@ -56,46 +48,76 @@ describe('validateStep2 — валидация на категории', () => {
 });
 
 // ---------------------------------------------------------------------------
-// renderStepCategories — DOM рендиране
+// renderStepCategories — структура
 // ---------------------------------------------------------------------------
 
 describe('renderStepCategories — структура', () => {
     it('връща DOM елемент', () => {
         const state = { categoryIds: [] };
-        const el = renderStepCategories(state, vi.fn());
+        const el = renderStepCategories(state, vi.fn(), [], TEST_CATEGORIES);
         expect(el).toBeInstanceOf(HTMLElement);
     });
 
-    it('рендира checkbox за всяка mock категория', () => {
+    it('рендира checkbox за всяка подадена категория', () => {
         const state = { categoryIds: [] };
-        const el = renderStepCategories(state, vi.fn());
+        const el = renderStepCategories(state, vi.fn(), [], TEST_CATEGORIES);
         const checkboxes = el.querySelectorAll('input[type="checkbox"]');
-        expect(checkboxes.length).toBe(MOCK_CATEGORIES.length);
+        expect(checkboxes.length).toBe(TEST_CATEGORIES.length);
     });
 
     it('показва имената на категориите', () => {
         const state = { categoryIds: [] };
-        const el = renderStepCategories(state, vi.fn());
-        MOCK_CATEGORIES.forEach(cat => {
+        const el = renderStepCategories(state, vi.fn(), [], TEST_CATEGORIES);
+        TEST_CATEGORIES.forEach(cat => {
             expect(el.textContent).toContain(cat.name);
         });
     });
 
     it('checkbox стойностите отговарят на id-тата', () => {
         const state = { categoryIds: [] };
-        const el = renderStepCategories(state, vi.fn());
+        const el = renderStepCategories(state, vi.fn(), [], TEST_CATEGORIES);
         const checkboxes = el.querySelectorAll('input[type="checkbox"]');
         const values = Array.from(checkboxes).map(cb => cb.value);
-        MOCK_CATEGORIES.forEach(cat => {
+        TEST_CATEGORIES.forEach(cat => {
             expect(values).toContain(cat.id);
         });
     });
 });
 
+// ---------------------------------------------------------------------------
+// renderStepCategories — празни категории
+// ---------------------------------------------------------------------------
+
+describe('renderStepCategories — празни категории', () => {
+    it('показва съобщение при липса на категории', () => {
+        const state = { categoryIds: [] };
+        const el = renderStepCategories(state, vi.fn(), [], []);
+        expect(el.textContent).toContain('Няма налични категории');
+    });
+
+    it('не рендира checkboxes при липса на категории', () => {
+        const state = { categoryIds: [] };
+        const el = renderStepCategories(state, vi.fn(), [], []);
+        const checkboxes = el.querySelectorAll('input[type="checkbox"]');
+        expect(checkboxes.length).toBe(0);
+    });
+
+    it('по подразбиране (без 4-ти параметър) показва 0 checkboxes', () => {
+        const state = { categoryIds: [] };
+        const el = renderStepCategories(state, vi.fn());
+        const checkboxes = el.querySelectorAll('input[type="checkbox"]');
+        expect(checkboxes.length).toBe(0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// renderStepCategories — предварително избрани
+// ---------------------------------------------------------------------------
+
 describe('renderStepCategories — предварително избрани', () => {
     it('маркира избраните категории', () => {
         const state = { categoryIds: ['cat-1', 'cat-3'] };
-        const el = renderStepCategories(state, vi.fn());
+        const el = renderStepCategories(state, vi.fn(), [], TEST_CATEGORIES);
         const checkboxes = el.querySelectorAll('input[type="checkbox"]');
         const checkedValues = Array.from(checkboxes)
             .filter(cb => cb.checked)
@@ -106,18 +128,22 @@ describe('renderStepCategories — предварително избрани', (
 
     it('не маркира неизбраните категории', () => {
         const state = { categoryIds: ['cat-1'] };
-        const el = renderStepCategories(state, vi.fn());
+        const el = renderStepCategories(state, vi.fn(), [], TEST_CATEGORIES);
         const checkboxes = el.querySelectorAll('input[type="checkbox"]');
         const cat2Checkbox = Array.from(checkboxes).find(cb => cb.value === 'cat-2');
         expect(cat2Checkbox.checked).toBe(false);
     });
 });
 
+// ---------------------------------------------------------------------------
+// renderStepCategories — callbacks при промяна
+// ---------------------------------------------------------------------------
+
 describe('renderStepCategories — callbacks при промяна', () => {
     it('onStateChange се извиква при избор на категория', () => {
         const onStateChange = vi.fn();
         const state = { categoryIds: [] };
-        const el = renderStepCategories(state, onStateChange);
+        const el = renderStepCategories(state, onStateChange, [], TEST_CATEGORIES);
         const firstCheckbox = el.querySelector('input[type="checkbox"]');
         firstCheckbox.checked = true;
         firstCheckbox.dispatchEvent(new Event('change'));
@@ -127,7 +153,7 @@ describe('renderStepCategories — callbacks при промяна', () => {
     it('добавя категория в нов state (immutable) при отметка', () => {
         const onStateChange = vi.fn();
         const state = { categoryIds: [] };
-        const el = renderStepCategories(state, onStateChange);
+        const el = renderStepCategories(state, onStateChange, [], TEST_CATEGORIES);
         const cat1Checkbox = el.querySelector('input[value="cat-1"]');
         cat1Checkbox.checked = true;
         cat1Checkbox.dispatchEvent(new Event('change'));
@@ -139,7 +165,7 @@ describe('renderStepCategories — callbacks при промяна', () => {
     it('премахва категория от нов state при премахване на отметка', () => {
         const onStateChange = vi.fn();
         const state = { categoryIds: ['cat-1', 'cat-2'] };
-        const el = renderStepCategories(state, onStateChange);
+        const el = renderStepCategories(state, onStateChange, [], TEST_CATEGORIES);
         const cat1Checkbox = el.querySelector('input[value="cat-1"]');
         cat1Checkbox.checked = false;
         cat1Checkbox.dispatchEvent(new Event('change'));
@@ -152,7 +178,7 @@ describe('renderStepCategories — callbacks при промяна', () => {
         const onStateChange = vi.fn();
         const originalIds = ['cat-2'];
         const state = { categoryIds: originalIds };
-        const el = renderStepCategories(state, onStateChange);
+        const el = renderStepCategories(state, onStateChange, [], TEST_CATEGORIES);
         const cat1Checkbox = el.querySelector('input[value="cat-1"]');
         cat1Checkbox.checked = true;
         cat1Checkbox.dispatchEvent(new Event('change'));
@@ -160,18 +186,22 @@ describe('renderStepCategories — callbacks при промяна', () => {
     });
 });
 
+// ---------------------------------------------------------------------------
+// renderStepCategories — показване на грешки
+// ---------------------------------------------------------------------------
+
 describe('renderStepCategories — показване на грешки', () => {
     it('показва грешки когато са подадени', () => {
         const state = { categoryIds: [] };
         const errors = ['Изберете поне 1 категория'];
-        const el = renderStepCategories(state, vi.fn(), errors);
+        const el = renderStepCategories(state, vi.fn(), errors, TEST_CATEGORIES);
         const errorEls = el.querySelectorAll('.form-error');
         expect(errorEls.length).toBeGreaterThan(0);
     });
 
     it('не показва form-error при липса на грешки', () => {
         const state = { categoryIds: ['cat-1'] };
-        const el = renderStepCategories(state, vi.fn(), []);
+        const el = renderStepCategories(state, vi.fn(), [], TEST_CATEGORIES);
         const errorEls = el.querySelectorAll('.form-error');
         expect(errorEls.length).toBe(0);
     });

@@ -1,11 +1,15 @@
-// Стъпка 11 — createTestView.js
+// Стъпка 42 — createTestView.js
 // Главен wizard controller за създаване на тест.
 // Управлява 4-стъпков wizard с immutable state.
+// Зарежда категории от API при инициализация.
 
 import { renderStepTitle, validateStep1 } from './wizard/stepTitleView.js';
 import { renderStepCategories, validateStep2 } from './wizard/stepCategoriesView.js';
-import { renderStepQuestions, validateStep3, addQuestion } from './wizard/stepQuestionsView.js';
+import { renderStepQuestions, validateStep3 } from './wizard/stepQuestionsView.js';
 import { renderStepPreview } from './wizard/stepPreviewView.js';
+import { buildStepper } from './wizard/wizardStepper.js';
+import * as categoryService from '../services/categoryService.js';
+import * as testService from '../services/testService.js';
 
 // ---------------------------------------------------------------------------
 // Начален state на wizard-а
@@ -25,18 +29,27 @@ function createInitialState() {
 //
 // @param {object} ctx — page.js context обект
 // ---------------------------------------------------------------------------
-export function showCreateTest(ctx) {
-    // Ignore ctx за момента — ще се използва при edit режим в Седмица 6
+export async function showCreateTest(ctx) {
+    // Ignore ctx за момента — ще се използва при edit режим
     void ctx;
 
     const main = document.getElementById('main');
     main.className = '';
 
+    // Зареждаме категориите от API при инициализация на wizard-а
+    let categories = [];
+    try {
+        categories = await categoryService.getCategories() ?? [];
+    } catch {
+        // При грешка продължаваме с празен масив — потребителят ще види съобщение в Стъпка 2
+        categories = [];
+    }
+
     let state = createInitialState();
 
     // Рендира wizard-а с текущия state
     function render(errors = []) {
-        main.replaceChildren(buildWizardLayout(state, errors, onStateChange, onNext, onBack));
+        main.replaceChildren(buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories));
     }
 
     // Callback при промяна на state от стъпките
@@ -82,7 +95,7 @@ function validateCurrentStep(state) {
 // ---------------------------------------------------------------------------
 // buildWizardLayout — строи целия wizard layout
 // ---------------------------------------------------------------------------
-function buildWizardLayout(state, errors, onStateChange, onNext, onBack) {
+function buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories) {
     const wrapper = document.createElement('div');
     wrapper.className = 'wizard-wrapper';
 
@@ -90,7 +103,7 @@ function buildWizardLayout(state, errors, onStateChange, onNext, onBack) {
     wrapper.appendChild(buildStepper(state.currentStep));
 
     // Съдържание на текущата стъпка
-    const stepContent = buildStepContent(state, errors, onStateChange);
+    const stepContent = buildStepContent(state, errors, onStateChange, categories);
     wrapper.appendChild(stepContent);
 
     // Навигационни бутони
@@ -100,56 +113,29 @@ function buildWizardLayout(state, errors, onStateChange, onNext, onBack) {
 }
 
 // ---------------------------------------------------------------------------
-// buildStepper — DOM индикатор за 4-те стъпки
-// ---------------------------------------------------------------------------
-function buildStepper(currentStep) {
-    const STEPS = [
-        'Заглавие',
-        'Категории',
-        'Въпроси',
-        'Преглед',
-    ];
-
-    const stepper = document.createElement('div');
-    stepper.className = 'wizard-stepper';
-
-    STEPS.forEach((label, index) => {
-        const step = document.createElement('div');
-        step.className = `stepper-step${index === currentStep ? ' active' : ''}`;
-        step.dataset.step = String(index);
-
-        const number = document.createElement('span');
-        number.className = 'step-number';
-        number.textContent = String(index + 1);
-
-        const text = document.createElement('span');
-        text.className = 'step-label';
-        text.textContent = label;
-
-        step.appendChild(number);
-        step.appendChild(text);
-        stepper.appendChild(step);
-    });
-
-    return stepper;
-}
-
-// ---------------------------------------------------------------------------
 // buildStepContent — рендира съдържанието на текущата стъпка
 // ---------------------------------------------------------------------------
-function buildStepContent(state, errors, onStateChange) {
+function buildStepContent(state, errors, onStateChange, categories) {
+    // onSave callback: изпраща теста към API
+    async function onSave(currentState) {
+        return testService.createTest(currentState);
+    }
+
     switch (state.currentStep) {
         case 0:
             return renderStepTitle(state, onStateChange, errors);
         case 1:
-            return renderStepCategories(state, onStateChange, errors);
+            return renderStepCategories(state, onStateChange, errors, categories);
         case 2:
             return renderStepQuestions(state, onStateChange, errors);
         case 3:
-            // Стъпка 4 управлява собствения си "Назад"
-            return renderStepPreview(state, () => {
-                onStateChange({ ...state, currentStep: 2 });
-            });
+            // Стъпка 4 управлява собствения си "Назад" и запазването
+            return renderStepPreview(
+                state,
+                () => { onStateChange({ ...state, currentStep: 2 }); },
+                categories,
+                onSave,
+            );
         default:
             return document.createElement('div');
     }

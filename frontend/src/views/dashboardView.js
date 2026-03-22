@@ -1,62 +1,44 @@
-// Стъпка 9 — dashboardView.js
+// Стъпка 41 — dashboardView.js
 // Списък с тестовете на учителя.
-// СЕГА: работи с MOCK данни (hardcoded масив).
-// ПОСЛЕ (Седмица 6): заменяме MOCK_TESTS с реална api.get('/tests') заявка.
+// Зарежда тестовете от реалния API чрез testService.
 //
 // Функционалност:
-//   - Показва тестовете като карти в grid
+//   - Показва loading state докато се зарежда
+//   - Показва тестовете като карти в grid след успешен fetch
+//   - Показва грешка при неуспешен fetch
 //   - Филтри: Всички / Чернови / Публикувани / Архивирани
-//   - Бутон "Нов тест" → /tests/create
 
 import { buildTestCard } from '../templates/testCardTemplate.js';
-
-// --- MOCK данни — заменят се с API в Седмица 6 ---
-const MOCK_TESTS = [
-    {
-        id: '1',
-        title: 'Тест по JavaScript — масиви и функции',
-        status: 'published',
-        questionsCount: 10,
-        attemptsCount: 23,
-        createdAt: '2026-03-01T10:00:00Z',
-        shareCode: 'JS001234',
-    },
-    {
-        id: '2',
-        title: 'Тест по C# — класове и наследяване',
-        status: 'draft',
-        questionsCount: 8,
-        attemptsCount: 0,
-        createdAt: '2026-03-15T14:30:00Z',
-        shareCode: 'CS005678',
-    },
-    {
-        id: '3',
-        title: 'Тест по математика — функции',
-        status: 'archived',
-        questionsCount: 15,
-        attemptsCount: 45,
-        createdAt: '2026-02-10T09:00:00Z',
-        shareCode: 'MT009012',
-    },
-];
+import * as testService from '../services/testService.js';
 
 // Текущо активен филтър
 let activeFilter = 'all';
 
-export function showDashboard() {
+export async function showDashboard() {
     const main = document.getElementById('main');
-    main.className = ''; // премахваме 'centered' от login страницата
+    main.className = ''; // Премахваме 'centered' от login страницата
 
-    // Зареждаме mock данните директно (без async)
-    // Когато свързваме с API → ще стане async и ще добавим loading state
-    const tests = MOCK_TESTS;
+    // Показваме loading state преди заявката
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'loading';
+    loadingEl.textContent = 'Зареждане...';
+    main.replaceChildren(loadingEl);
 
-    main.replaceChildren(
-        buildPageHeader(),
-        buildFilters(tests),
-        buildGrid(tests),
-    );
+    try {
+        const tests = await testService.getMyTests() ?? [];
+
+        main.replaceChildren(
+            buildPageHeader(),
+            buildFilters(tests),
+            buildGrid(tests),
+        );
+    } catch (err) {
+        // Показваме user-friendly съобщение при грешка
+        const errorEl = document.createElement('div');
+        errorEl.className = 'error';
+        errorEl.textContent = `Грешка при зареждане на тестовете: ${err.message}`;
+        main.replaceChildren(errorEl);
+    }
 }
 
 // Хедър с заглавие и бутон "Нов тест"

@@ -1,10 +1,14 @@
-// Стъпка 19 — testTakingView.js
+// Стъпка 46 — testTakingView.js
 // Участникът решава теста.
 // Показва въпроси с radio бутони, таймер и бутон за предаване.
 // Използва само createElement/textContent — никога innerHTML с потребителски данни.
+//
+// Промяна (Седмица 6 — Phase 4):
+//   Scoring е преместен на сървъра — collectAnswers() изпраща само { questionId, selectedAnswerId }.
+//   Submit извиква testService.submitAttempt и получава AttemptResultResponse.
 
 import page from '../../lib/page.min.js';
-import { findTestByShareCode } from '../../data/mockTests.js';
+import * as testService from '../../services/testService.js';
 import { createTimer, formatTime } from '../../utils/timer.js';
 import { buildResultsScreen } from './testResultsView.js';
 import { buildErrorCard } from './participantUtils.js';
@@ -14,7 +18,7 @@ let activeTimer = null;
 let submitted = false;
 
 // Показва страницата за решаване на теста
-export function showTestTaking(ctx) {
+export async function showTestTaking(ctx) {
     const { shareCode, attemptId } = ctx.params;
 
     // ЗАДЪЛЖИТЕЛНО: reset на submitted flag и cleanup на стар таймер
@@ -35,7 +39,19 @@ export function showTestTaking(ctx) {
         return;
     }
 
-    const test = findTestByShareCode(shareCode);
+    // Показва loading state преди API заявката
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'loading';
+    loadingEl.textContent = 'Зареждане...';
+    main.replaceChildren(loadingEl);
+
+    let test;
+    try {
+        test = await testService.getPublicTest(shareCode);
+    } catch (_err) {
+        main.replaceChildren(buildErrorCard(shareCode));
+        return;
+    }
 
     if (!test) {
         main.replaceChildren(buildErrorCard(shareCode));
@@ -47,8 +63,7 @@ export function showTestTaking(ctx) {
 }
 
 // --- Изгражда целия екран за решаване на теста ---
-// shareCode и attemptId са запазени за бъдеща употреба (Седмица 6 — API интеграция)
-function buildTestScreen(test, participantName, _shareCode, _attemptId) {
+function buildTestScreen(test, participantName, shareCode, _attemptId) {
     const wrapper = document.createElement('div');
     wrapper.className = 'test-taking-screen';
 
@@ -66,18 +81,18 @@ function buildTestScreen(test, participantName, _shareCode, _attemptId) {
     activeTimer = createTimer(
         test.duration,
         (remaining) => { timerEl.textContent = formatTime(remaining); },
-        () => { autoSubmit(test, participantName, wrapper); }
+        () => { autoSubmit(test, participantName, shareCode, wrapper); }
     );
 
     // Обработва ръчен submit
     submitBtn.addEventListener('click', () => {
-        manualSubmit(test, participantName, wrapper, submitBtn);
+        manualSubmit(test, participantName, shareCode, wrapper, submitBtn);
     });
 
     return wrapper;
 }
 
-// Хедър с заглавие на теста и името на участника
+// Хедър с заглавие на теста
 function buildHeader(test) {
     const header = document.createElement('div');
     header.className = 'test-header';
@@ -160,49 +175,63 @@ function buildSubmitButton() {
     return btn;
 }
 
-// Събира избраните отговори от формата
-function collectAnswers(test, container) {
-    return test.questions.map(question => {
+// Събира избраните отговори от DOM — само IDs, БЕЗ scoring (сигурност)
+// Scoring се прави изцяло на сървъра
+// @returns {Array<{ questionId: string, selectedAnswerId: string|null }>}
+function collectAnswers(questions, container) {
+    return questions.map(question => {
         const radio = container.querySelector(`input[name="q-${question.id}"]:checked`);
-        const selectedAnswerId = radio ? radio.value : null;
-        const correctAnswer = question.answers.find(a => a.isCorrect);
-        const correctAnswerId = correctAnswer ? correctAnswer.id : null;
-
         return {
             questionId: question.id,
-            questionText: question.text,
-            selectedAnswerId,
-            correctAnswerId,
-            isCorrect: selectedAnswerId === correctAnswerId,
-            answers: question.answers,
+            selectedAnswerId: radio ? radio.value : null,
         };
     });
 }
 
-// Рендира резултатите и спира таймера
-// _test е запазен за бъдеща употреба (Седмица 6 — запис на сървъра)
-function renderResults(_test, participantName, container, results) {
+// Рендира резултатите от сървъра и спира таймера
+function renderResults(test, participantName, container, attemptResult) {
     if (activeTimer) {
         activeTimer.stop();
         activeTimer = null;
     }
-    const resultsEl = buildResultsScreen(results, participantName);
+    const resultsEl = buildResultsScreen(test, participantName, attemptResult);
     container.replaceWith(resultsEl);
 }
 
+// Показва грешка в контейнера при неуспешен submit
+function renderSubmitError(container, message) {
+    const errorEl = document.createElement('p');
+    errorEl.className = 'submit-error';
+    errorEl.textContent = `Грешка: ${message}`;
+    container.appendChild(errorEl);
+}
+
 // Автоматичен submit при изтичане на таймера
-function autoSubmit(test, participantName, container) {
+async function autoSubmit(test, participantName, shareCode, container) {
     if (submitted) return;
     submitted = true;
-    const results = collectAnswers(test, container);
-    renderResults(test, participantName, container, results);
+    const answers = collectAnswers(test.questions, container);
+    try {
+        const result = await testService.submitAttempt(shareCode, { participantName, answers });
+        renderResults(test, participantName, container, result);
+    } catch (err) {
+        submitted = false;
+        renderSubmitError(container, err.message);
+    }
 }
 
 // Ръчен submit от бутона
-function manualSubmit(test, participantName, container, btn) {
+async function manualSubmit(test, participantName, shareCode, container, btn) {
     if (submitted) return;
     submitted = true;
     btn.disabled = true;
-    const results = collectAnswers(test, container);
-    renderResults(test, participantName, container, results);
+    const answers = collectAnswers(test.questions, container);
+    try {
+        const result = await testService.submitAttempt(shareCode, { participantName, answers });
+        renderResults(test, participantName, container, result);
+    } catch (err) {
+        submitted = false;
+        btn.disabled = false;
+        renderSubmitError(container, err.message);
+    }
 }

@@ -1,20 +1,32 @@
-// Стъпка 18 — testEntryView.js
+// Стъпка 45 — testEntryView.js
 // Участникът влиза в тест по shareCode + въвежда пълно име.
-// Зарежда тест от mockTests и показва информация преди старт.
+// Зарежда тест от сървъра чрез testService.getPublicTest.
 // Използва само createElement/textContent — никога innerHTML с потребителски данни.
 
 import page from '../../lib/page.min.js';
-import { findTestByShareCode } from '../../data/mockTests.js';
+import * as testService from '../../services/testService.js';
 import { formatTime } from '../../utils/timer.js';
 import { buildErrorCard } from './participantUtils.js';
 
 // Показва страницата за влизане в тест по shareCode
-export function showTestEntry(ctx) {
+export async function showTestEntry(ctx) {
     const shareCode = ctx.params.shareCode;
     const main = document.getElementById('main');
     main.className = 'centered';
 
-    const test = findTestByShareCode(shareCode);
+    // Показва loading state преди API заявката
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'loading';
+    loadingEl.textContent = 'Зареждане...';
+    main.replaceChildren(loadingEl);
+
+    let test;
+    try {
+        test = await testService.getPublicTest(shareCode);
+    } catch (_err) {
+        main.replaceChildren(buildErrorCard(shareCode));
+        return;
+    }
 
     if (!test) {
         main.replaceChildren(buildErrorCard(shareCode));

@@ -13,22 +13,24 @@ import { getToken }     from './auth.js';
 import page             from '../../lib/page.min.js';
 
 // Основна функция — изпраща HTTP заявка и обработва отговора
+// Опцията skipAuth: true пропуска добавянето на JWT (за публични ендпойнти)
 async function request(url, options = {}) {
+    const { skipAuth = false, ...fetchOptions } = options;
     const token = getToken();
 
     const headers = {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...fetchOptions.headers,
     };
 
-    // Добавяме JWT токена само ако съществува
-    if (token) {
+    // Добавяме JWT токена само ако съществува И не е публична заявка
+    if (token && !skipAuth) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
     let response;
     try {
-        response = await fetch(API_BASE_URL + url, { ...options, headers });
+        response = await fetch(API_BASE_URL + url, { ...fetchOptions, headers });
     } catch {
         // Мрежова грешка — сървърът не отговаря
         throw new Error('Няма връзка със сървъра. Провери дали backend-ът работи.');
@@ -58,9 +60,10 @@ async function request(url, options = {}) {
 }
 
 // Публичен API обект — четири HTTP метода
+// Всеки метод приема незадължителен трети аргумент opts (напр. { skipAuth: true })
 export const api = {
-    get:    (url)         => request(url, { method: 'GET' }),
-    post:   (url, data)   => request(url, { method: 'POST',   body: JSON.stringify(data) }),
-    put:    (url, data)   => request(url, { method: 'PUT',    body: JSON.stringify(data) }),
-    delete: (url)         => request(url, { method: 'DELETE' }),
+    get:    (url, opts = {})       => request(url, { method: 'GET',    ...opts }),
+    post:   (url, data, opts = {}) => request(url, { method: 'POST',   body: JSON.stringify(data), ...opts }),
+    put:    (url, data, opts = {}) => request(url, { method: 'PUT',    body: JSON.stringify(data), ...opts }),
+    delete: (url, opts = {})       => request(url, { method: 'DELETE', ...opts }),
 };

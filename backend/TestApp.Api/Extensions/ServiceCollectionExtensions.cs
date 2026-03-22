@@ -64,6 +64,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITestService, TestService>();
         services.AddScoped<IShareCodeGenerator, ShareCodeGenerator>();
+        services.AddScoped<ICategoryService, CategoryService>();
 
         // Конфигурира CORS политика
         services.AddCors(options =>

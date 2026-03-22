@@ -317,4 +317,29 @@ public class TestService : ITestService
                 .ToList()
         };
     }
+
+    // Връща обобщените резултати на опитите за даден тест (само ако ownerId съвпада)
+    public async Task<List<AttemptSummary>> GetAttemptsByTestAsync(Guid testId, Guid ownerId)
+    {
+        // Проверява дали тестът принадлежи на собственика
+        var testExists = await _db.Tests.AnyAsync(t => t.Id == testId && t.OwnerId == ownerId);
+        if (!testExists) return new List<AttemptSummary>();
+
+        return await _db.Attempts
+            .AsNoTracking()
+            .Where(a => a.TestId == testId)
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => new AttemptSummary
+            {
+                Id = a.Id,
+                ParticipantName = a.ParticipantName,
+                Score = a.Score,
+                TotalQuestions = a.TotalQuestions,
+                Percent = a.TotalQuestions > 0
+                    ? Math.Round((double)a.Score / a.TotalQuestions * 100, 2)
+                    : 0,
+                CreatedAt = a.CreatedAt
+            })
+            .ToListAsync();
+    }
 }

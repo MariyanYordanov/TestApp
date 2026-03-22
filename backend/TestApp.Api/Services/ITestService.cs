@@ -20,4 +20,7 @@ public interface ITestService
 
     // Предава опит за тест и изчислява резултата
     Task<AttemptResultResponse?> SubmitAttemptAsync(string shareCode, SubmitAttemptRequest request);
+
+    // Връща обобщените резултати на опитите за даден тест (само за собственика)
+    Task<List<AttemptSummary>> GetAttemptsByTestAsync(Guid testId, Guid ownerId);
 }

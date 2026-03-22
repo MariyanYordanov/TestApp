@@ -84,6 +84,18 @@ public class TestsController : ControllerBase
         return Ok(test);
     }
 
+    // GET api/tests/{id}/attempts — връща опитите за тест (само собственикът)
+    [HttpGet("{id:guid}/attempts")]
+    [Authorize]
+    public async Task<IActionResult> GetAttempts(Guid id)
+    {
+        if (!TryGetCurrentUserId(out var ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var attempts = await _testService.GetAttemptsByTestAsync(id, ownerId);
+        return Ok(attempts);
+    }
+
     // POST api/tests/{shareCode}/attempts — предаване на опит (с rate limiting)
     [HttpPost("{shareCode}/attempts")]
     [AllowAnonymous]

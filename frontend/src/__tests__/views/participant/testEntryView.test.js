@@ -1,16 +1,73 @@
 // Тестове за views/participant/testEntryView.js
+// Стъпка 45 — testEntryView.test.js
+// Обновени тестове: мокираме testService.getPublicTest вместо mockTests.
+
+vi.mock('../../../services/testService.js', () => ({
+    getPublicTest: vi.fn(),
+    submitAttempt: vi.fn(),
+}));
 
 const page = (await import('../../../lib/page.min.js')).default;
 const { showTestEntry } = await import('../../../views/participant/testEntryView.js');
+const testService = await import('../../../services/testService.js');
 
 // Изчаква завършването на всички pending Promise микрозадачи
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
-describe('testEntryView.js — невалиден shareCode', () => {
+// Примерен PublicTestResponse от сървъра — без isCorrect на отговорите
+const MOCK_PUBLIC_TEST = {
+    shareCode: 'ABCD1234',
+    title: 'Тест по JavaScript',
+    description: 'Основни концепции на JavaScript.',
+    duration: 1800,
+    questions: [
+        {
+            id: 'q-1',
+            text: 'Какво е JavaScript?',
+            answers: [
+                { id: 'a-1', text: 'Програмен език' },
+                { id: 'a-2', text: 'База данни' },
+                { id: 'a-3', text: 'Операционна система' },
+            ],
+        },
+        {
+            id: 'q-2',
+            text: 'Кой е правилният начин за деклариране на константа?',
+            answers: [
+                { id: 'a-4', text: 'var x = 5' },
+                { id: 'a-5', text: 'const x = 5' },
+                { id: 'a-6', text: 'x := 5' },
+            ],
+        },
+        {
+            id: 'q-3',
+            text: 'Какво връща typeof null?',
+            answers: [
+                { id: 'a-7', text: '"null"' },
+                { id: 'a-8', text: '"object"' },
+                { id: 'a-9', text: '"undefined"' },
+            ],
+        },
+    ],
+};
+
+describe('testEntryView.js — loading state', () => {
+    it('показва loading елемент преди API отговор', async () => {
+        // getPublicTest никога не resolve-ва — можем да видим loading state
+        testService.getPublicTest.mockReturnValue(new Promise(() => {}));
+        const main = document.getElementById('main');
+        showTestEntry({ params: { shareCode: 'ABCD1234' } });
+        // Веднага след извикване — преди await — трябва да има loading съобщение
+        expect(main.textContent).toMatch(/зареждане|loading/i);
+    });
+});
+
+describe('testEntryView.js — невалиден shareCode (null от сървъра)', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         page.redirect.mockReset();
         sessionStorage.clear();
+        testService.getPublicTest.mockResolvedValue(null);
         await showTestEntry({ params: { shareCode: 'NOTEXIST' } });
         await flushPromises();
     });
@@ -33,11 +90,34 @@ describe('testEntryView.js — невалиден shareCode', () => {
     });
 });
 
+describe('testEntryView.js — грешка от сървъра', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        page.redirect.mockReset();
+        sessionStorage.clear();
+        testService.getPublicTest.mockRejectedValue(new Error('Network error'));
+        await showTestEntry({ params: { shareCode: 'ERRCODE' } });
+        await flushPromises();
+    });
+
+    it('показва error card при мрежова грешка', () => {
+        const main = document.getElementById('main');
+        const errorEl = main.querySelector('.error-card') ?? main.querySelector('[class*="error"]');
+        expect(errorEl).not.toBeNull();
+    });
+
+    it('не рендира форма при грешка', () => {
+        const main = document.getElementById('main');
+        expect(main.querySelector('form')).toBeNull();
+    });
+});
+
 describe('testEntryView.js — валиден shareCode', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         page.redirect.mockReset();
         sessionStorage.clear();
+        testService.getPublicTest.mockResolvedValue(MOCK_PUBLIC_TEST);
         await showTestEntry({ params: { shareCode: 'ABCD1234' } });
         await flushPromises();
     });
@@ -73,6 +153,10 @@ describe('testEntryView.js — валиден shareCode', () => {
         const main = document.getElementById('main');
         expect(main.className).toBe('centered');
     });
+
+    it('извиква testService.getPublicTest с правилния shareCode', () => {
+        expect(testService.getPublicTest).toHaveBeenCalledWith('ABCD1234');
+    });
 });
 
 describe('testEntryView.js — валидация на форма', () => {
@@ -80,6 +164,7 @@ describe('testEntryView.js — валидация на форма', () => {
         vi.clearAllMocks();
         page.redirect.mockReset();
         sessionStorage.clear();
+        testService.getPublicTest.mockResolvedValue(MOCK_PUBLIC_TEST);
         await showTestEntry({ params: { shareCode: 'ABCD1234' } });
         await flushPromises();
     });
@@ -138,6 +223,7 @@ describe('testEntryView.js — успешен submit', () => {
         vi.clearAllMocks();
         page.redirect.mockReset();
         sessionStorage.clear();
+        testService.getPublicTest.mockResolvedValue(MOCK_PUBLIC_TEST);
         await showTestEntry({ params: { shareCode: 'ABCD1234' } });
         await flushPromises();
     });

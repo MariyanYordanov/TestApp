@@ -1,4 +1,6 @@
 // Тестове за views/createTestView.js
+// Стъпка 42 — createTestView.test.js
+// Обновени: мокираме categoryService.getCategories и testService.createTest.
 
 vi.mock('../../services/auth.js', () => ({
     isAuthenticated: vi.fn().mockReturnValue(true),
@@ -10,8 +12,28 @@ vi.mock('../../lib/page.min.js', () => ({
     default: { redirect: vi.fn(), start: vi.fn() },
 }));
 
+vi.mock('../../services/categoryService.js', () => ({
+    getCategories: vi.fn(),
+}));
+
+vi.mock('../../services/testService.js', () => ({
+    createTest: vi.fn(),
+    getMyTests: vi.fn(),
+}));
+
 const { showCreateTest } = await import('../../views/createTestView.js');
 const page = (await import('../../lib/page.min.js')).default;
+const categoryService = await import('../../services/categoryService.js');
+const testService = await import('../../services/testService.js');
+
+// ---------------------------------------------------------------------------
+// Тестови категории
+// ---------------------------------------------------------------------------
+const TEST_CATEGORIES = [
+    { id: 'cat-1', name: 'Математика' },
+    { id: 'cat-2', name: 'История' },
+    { id: 'cat-3', name: 'Биология' },
+];
 
 // ---------------------------------------------------------------------------
 // Помощна функция за ctx обект (page.js context)
@@ -25,9 +47,11 @@ function makeCtx(overrides = {}) {
 // ---------------------------------------------------------------------------
 
 describe('createTestView — начален рендер', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
         showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
     });
 
     it('рендира съдържание в #main', () => {
@@ -76,9 +100,11 @@ describe('createTestView — начален рендер', () => {
 // ---------------------------------------------------------------------------
 
 describe('createTestView — навигация към Стъпка 2', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
         showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
     });
 
     it('при невалидни данни не преминава към Стъпка 2', () => {
@@ -135,9 +161,11 @@ describe('createTestView — навигация към Стъпка 3', () => {
         main.querySelector('[data-action="next"]').click();
     }
 
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
         showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
     });
 
     it('показва грешки при клик "Напред" без избрана категория', () => {
@@ -174,9 +202,11 @@ describe('createTestView — навигация "Назад"', () => {
         main.querySelector('[data-action="next"]').click();
     }
 
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
         showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
     });
 
     it('бутонът "Назад" се появява от Стъпка 2', () => {
@@ -207,8 +237,11 @@ describe('createTestView — навигация "Назад"', () => {
 // ---------------------------------------------------------------------------
 
 describe('createTestView — запазване на state', () => {
-    it('запазва въведените данни при навигация напред-назад', () => {
+    it('запазва въведените данни при навигация напред-назад', async () => {
+        vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
         showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
         const main = document.getElementById('main');
 
         // Въвеждаме данни
@@ -247,9 +280,11 @@ describe('createTestView — навигация до Стъпка 4 (Прегл�
         main.querySelector('[data-action="next"]').click();
     }
 
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
         showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
     });
 
     it('показва грешки при клик "Напред" без въпроси', () => {
@@ -265,19 +300,18 @@ describe('createTestView — навигация до Стъпка 4 (Прегл�
         // Добавяме въпрос — DOM се ре-рендира
         main.querySelector('[data-action="add-question"]').click();
 
-        // Попълваме текст — всяко input event предизвиква re-render
-        // Затова ползваме само 1 input event с пълния текст, после ползваме fresh ref
+        // Попълваме текст
         main.querySelector('textarea').value = 'Какво е JavaScript?';
         main.querySelector('textarea').dispatchEvent(new Event('input'));
 
-        // Попълваме отговорите (fresh refs след re-render)
+        // Попълваме отговорите
         main.querySelectorAll('[data-answer-id] input[type="text"]')[0].value = 'Програмен език';
         main.querySelectorAll('[data-answer-id] input[type="text"]')[0].dispatchEvent(new Event('input'));
 
         main.querySelectorAll('[data-answer-id] input[type="text"]')[1].value = 'База данни';
         main.querySelectorAll('[data-answer-id] input[type="text"]')[1].dispatchEvent(new Event('input'));
 
-        // Маркираме верен отговор (fresh ref след re-render)
+        // Маркираме верен отговор
         main.querySelectorAll('input[type="radio"]')[0].dispatchEvent(new Event('change'));
 
         // Преминаваме към Стъпка 4
@@ -314,5 +348,109 @@ describe('createTestView — навигация до Стъпка 4 (Прегл�
         // Трябва да сме на Стъпка 3
         const addBtn = main.querySelector('[data-action="add-question"]');
         expect(addBtn).not.toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// createTestView — категории се зареждат от API
+// ---------------------------------------------------------------------------
+
+describe('createTestView — категории от API', () => {
+    it('зарежда категории от categoryService', async () => {
+        vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
+        showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
+
+        expect(categoryService.getCategories).toHaveBeenCalled();
+    });
+
+    it('при грешка при зареждане на категории показва 0 checkboxes на Стъпка 2', async () => {
+        vi.clearAllMocks();
+        categoryService.getCategories.mockRejectedValue(new Error('Мрежова грешка'));
+        showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
+
+        const main = document.getElementById('main');
+        // Преминаваме на Стъпка 2
+        main.querySelector('#test-title').value = 'Тест';
+        main.querySelector('#test-title').dispatchEvent(new Event('input'));
+        main.querySelector('#test-description').value = 'Описание поне десет символа';
+        main.querySelector('#test-description').dispatchEvent(new Event('input'));
+        main.querySelector('[data-action="next"]').click();
+
+        // При грешка → 0 checkboxes
+        const checkboxes = main.querySelectorAll('input[type="checkbox"]');
+        expect(checkboxes.length).toBe(0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// createTestView — createTest се извиква при запазване
+// ---------------------------------------------------------------------------
+
+describe('createTestView — запазване чрез testService', () => {
+    const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
+
+    function goToStep4(main) {
+        // Стъпка 1
+        main.querySelector('#test-title').value = 'Тест по JS';
+        main.querySelector('#test-title').dispatchEvent(new Event('input'));
+        main.querySelector('#test-description').value = 'Описание поне десет символа';
+        main.querySelector('#test-description').dispatchEvent(new Event('input'));
+        main.querySelector('[data-action="next"]').click();
+
+        // Стъпка 2
+        const firstCheckbox = main.querySelector('input[type="checkbox"]');
+        firstCheckbox.checked = true;
+        firstCheckbox.dispatchEvent(new Event('change'));
+        main.querySelector('[data-action="next"]').click();
+
+        // Стъпка 3
+        main.querySelector('[data-action="add-question"]').click();
+        main.querySelector('textarea').value = 'Какво е JavaScript?';
+        main.querySelector('textarea').dispatchEvent(new Event('input'));
+        main.querySelectorAll('[data-answer-id] input[type="text"]')[0].value = 'Програмен език';
+        main.querySelectorAll('[data-answer-id] input[type="text"]')[0].dispatchEvent(new Event('input'));
+        main.querySelectorAll('[data-answer-id] input[type="text"]')[1].value = 'База данни';
+        main.querySelectorAll('[data-answer-id] input[type="text"]')[1].dispatchEvent(new Event('input'));
+        main.querySelectorAll('input[type="radio"]')[0].dispatchEvent(new Event('change'));
+        main.querySelector('[data-action="next"]').click();
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
+        testService.createTest.mockResolvedValue({ id: 'new-test-id' });
+        showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
+    });
+
+    it('при клик "Запази" извиква testService.createTest', async () => {
+        const main = document.getElementById('main');
+        goToStep4(main);
+
+        const saveBtn = main.querySelector('[data-action="save-draft"]');
+        saveBtn.click();
+        await flushPromises();
+
+        expect(testService.createTest).toHaveBeenCalled();
+    });
+
+    it('при успешно запазване пренасочва към /dashboard', async () => {
+        vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
+        testService.createTest.mockResolvedValue({ id: 'new-test-id' });
+        showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
+
+        const main = document.getElementById('main');
+        goToStep4(main);
+
+        const saveBtn = main.querySelector('[data-action="save-draft"]');
+        saveBtn.click();
+        await flushPromises();
+
+        expect(page.redirect).toHaveBeenCalledWith('/dashboard');
     });
 });

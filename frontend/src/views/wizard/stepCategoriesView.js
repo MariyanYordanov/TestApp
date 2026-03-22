@@ -1,17 +1,7 @@
-// Стъпка 13 — stepCategoriesView.js
+// Стъпка 43 — stepCategoriesView.js
 // Стъпка 2 от wizard-а: избор на категории чрез checkboxes.
 // Без innerHTML за потребителски данни — само createElement/textContent.
-
-// ---------------------------------------------------------------------------
-// MOCK данни — заменят се с API заявка в Седмица 6
-// ---------------------------------------------------------------------------
-export const MOCK_CATEGORIES = [
-    { id: 'cat-1', name: 'Математика' },
-    { id: 'cat-2', name: 'История' },
-    { id: 'cat-3', name: 'Биология' },
-    { id: 'cat-4', name: 'JavaScript' },
-    { id: 'cat-5', name: 'C#' },
-];
+// Категориите се подават като параметър (заредени от API в createTestView).
 
 // ---------------------------------------------------------------------------
 // validateStep2 — валидиране на Стъпка 2
@@ -35,9 +25,10 @@ export function validateStep2(state) {
 // @param {object}   state         — wizard state
 // @param {function} onStateChange — callback(newState) при промяна
 // @param {string[]} errors        — масив с грешки (по подразбиране [])
+// @param {Array}    categories    — масив с категории от API (по подразбиране [])
 // @returns {HTMLElement}
 // ---------------------------------------------------------------------------
-export function renderStepCategories(state, onStateChange, errors = []) {
+export function renderStepCategories(state, onStateChange, errors = [], categories = []) {
     const container = document.createElement('div');
     container.className = 'step-content step-categories';
 
@@ -46,13 +37,21 @@ export function renderStepCategories(state, onStateChange, errors = []) {
     heading.textContent = 'Изберете категории';
     container.appendChild(heading);
 
-    // Списък с checkboxes
+    // Списък с checkboxes или съобщение за липса на категории
     const list = document.createElement('div');
     list.className = 'categories-list';
 
-    MOCK_CATEGORIES.forEach(cat => {
-        list.appendChild(buildCategoryCheckbox(cat, state, onStateChange));
-    });
+    if (categories.length === 0) {
+        // Показваме информативно съобщение при липса на категории
+        const emptyMsg = document.createElement('p');
+        emptyMsg.className = 'empty-state';
+        emptyMsg.textContent = 'Няма налични категории. Добавете категории от менюто.';
+        list.appendChild(emptyMsg);
+    } else {
+        categories.forEach(cat => {
+            list.appendChild(buildCategoryCheckbox(cat, state, onStateChange));
+        });
+    }
 
     container.appendChild(list);
 

@@ -1,19 +1,21 @@
-// Стъпка 15 — stepPreviewView.js
+// Стъпка 44 — stepPreviewView.js
 // Стъпка 4 от wizard-а: преглед на теста преди запазване.
 // Само readonly — без input/textarea полета.
+// categories се подава като параметър; onSave callback извиква реалния API.
 
 import page from '../../../lib/page.min.js';
 import { buildReadonlyQuestionCard } from '../../templates/questionTemplate.js';
-import { MOCK_CATEGORIES } from './stepCategoriesView.js';
 
 // ---------------------------------------------------------------------------
 // renderStepPreview — рендира DOM за Стъпка 4
 //
-// @param {object}   state  — wizard state
-// @param {function} onBack — callback при натискане на "Назад"
+// @param {object}        state      — wizard state
+// @param {function}      onBack     — callback при натискане на "Назад"
+// @param {Array}         categories — масив с категории от API (по подразбиране [])
+// @param {function|null} onSave     — async callback(state) за запазване чрез API
 // @returns {HTMLElement}
 // ---------------------------------------------------------------------------
-export function renderStepPreview(state, onBack) {
+export function renderStepPreview(state, onBack, categories = [], onSave = null) {
     const container = document.createElement('div');
     container.className = 'step-content step-preview';
 
@@ -23,19 +25,19 @@ export function renderStepPreview(state, onBack) {
     container.appendChild(heading);
 
     // Секция: обобщена информация
-    container.appendChild(buildSummarySection(state));
+    container.appendChild(buildSummarySection(state, categories));
 
     // Секция: въпроси (readonly)
     container.appendChild(buildQuestionsSection(state));
 
     // Навигационни бутони
-    container.appendChild(buildActionButtons(state, onBack));
+    container.appendChild(buildActionButtons(state, onBack, onSave, container));
 
     return container;
 }
 
 // Обобщена информация за теста
-function buildSummarySection(state) {
+function buildSummarySection(state, categories) {
     const section = document.createElement('div');
     section.className = 'preview-summary card';
 
@@ -46,9 +48,9 @@ function buildSummarySection(state) {
     description.className = 'preview-description';
     description.textContent = state.description;
 
-    // Избрани категории
+    // Избрани категории — имената се търсят в подадения масив
     const categoryIds = state.categoryIds ?? [];
-    const categoryNames = MOCK_CATEGORIES
+    const categoryNames = categories
         .filter(c => categoryIds.includes(c.id))
         .map(c => c.name)
         .join(', ');
@@ -85,7 +87,7 @@ function buildQuestionsSection(state) {
 }
 
 // Бутони: "Назад" и "Запази като чернова"
-function buildActionButtons(state, onBack) {
+function buildActionButtons(state, onBack, onSave, container) {
     const bar = document.createElement('div');
     bar.className = 'wizard-actions';
 
@@ -103,9 +105,35 @@ function buildActionButtons(state, onBack) {
     saveBtn.className = 'btn btn-primary';
     saveBtn.dataset.action = 'save-draft';
     saveBtn.textContent = 'Запази като чернова';
-    saveBtn.addEventListener('click', () => {
-        // TODO Седмица 6: замени с реален API call
-        page.redirect('/dashboard');
+
+    saveBtn.addEventListener('click', async () => {
+        if (!onSave) {
+            // Backward compatibility: без onSave просто пренасочваме
+            page.redirect('/dashboard');
+            return;
+        }
+
+        // Показваме loading state на бутона
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Запазване...';
+
+        // Премахваме предишни грешки
+        const prevError = container.querySelector('.save-error');
+        if (prevError) prevError.remove();
+
+        try {
+            await onSave(state);
+            page.redirect('/dashboard');
+        } catch (err) {
+            // Показваме грешката и активираме бутона отново
+            const errorEl = document.createElement('p');
+            errorEl.className = 'form-error save-error';
+            errorEl.textContent = err.message || 'Грешка при запазване. Опитайте отново.';
+            bar.appendChild(errorEl);
+
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Запази като чернова';
+        }
     });
 
     bar.appendChild(backBtn);

@@ -1,15 +1,72 @@
 // Тестове за views/dashboardView.js
-//
-// БЕЛЕЖКА: Тестовете за брой карти (3 общо, 1 draft, 1 published, 1 archived)
-// зависят от MOCK_TESTS константата в dashboardView.js.
-// При свързването с реален API (Седмица 6) тези тестове ще се обновят
-// да мокират fetch вместо да разчитат на вградените mock данни.
+// Стъпка 41 — dashboardView.test.js
+// Обновени тестове: мокираме testService.getMyTests вместо вградени mock данни.
 
-import { showDashboard } from '../../views/dashboardView.js';
+vi.mock('../../services/testService.js', () => ({
+    getMyTests: vi.fn(),
+}));
 
-describe('dashboardView.js — рендиране', () => {
-    beforeEach(() => {
+const { showDashboard } = await import('../../views/dashboardView.js');
+const testService = await import('../../services/testService.js');
+
+// ---------------------------------------------------------------------------
+// Помощни данни
+// ---------------------------------------------------------------------------
+const MOCK_TESTS = [
+    {
+        id: '1',
+        title: 'Тест по JavaScript — масиви и функции',
+        status: 'published',
+        questionsCount: 10,
+        attemptsCount: 23,
+        createdAt: '2026-03-01T10:00:00Z',
+        shareCode: 'JS001234',
+    },
+    {
+        id: '2',
+        title: 'Тест по C# — класове и наследяване',
+        status: 'draft',
+        questionsCount: 8,
+        attemptsCount: 0,
+        createdAt: '2026-03-15T14:30:00Z',
+        shareCode: 'CS005678',
+    },
+    {
+        id: '3',
+        title: 'Тест по математика — функции',
+        status: 'archived',
+        questionsCount: 15,
+        attemptsCount: 45,
+        createdAt: '2026-02-10T09:00:00Z',
+        shareCode: 'MT009012',
+    },
+];
+
+// ---------------------------------------------------------------------------
+// dashboardView — loading state
+// ---------------------------------------------------------------------------
+
+describe('dashboardView — loading state', () => {
+    it('показва loading съобщение преди fetch', async () => {
+        // getMyTests никога не resolve-ва в този тест
+        testService.getMyTests.mockReturnValue(new Promise(() => {}));
+        const main = document.getElementById('main');
         showDashboard();
+        // Веднага след извикване трябва да има loading елемент
+        const loading = main.querySelector('.loading');
+        expect(loading).not.toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// dashboardView — рендиране с реални данни
+// ---------------------------------------------------------------------------
+
+describe('dashboardView — рендиране', () => {
+    beforeEach(async () => {
+        testService.getMyTests.mockResolvedValue(MOCK_TESTS);
+        showDashboard();
+        await vi.waitUntil(() => document.getElementById('main').querySelector('.test-grid'));
     });
 
     it('рендира h1 "Моите тестове"', () => {
@@ -25,7 +82,7 @@ describe('dashboardView.js — рендиране', () => {
         expect(filterBtns.length).toBe(4);
     });
 
-    it('рендира 3 test карти (mock данните)', () => {
+    it('рендира 3 test карти', () => {
         const main = document.getElementById('main');
         const cards = main.querySelectorAll('.test-card');
         expect(cards.length).toBe(3);
@@ -46,10 +103,46 @@ describe('dashboardView.js — рендиране', () => {
     });
 });
 
-describe('dashboardView.js — филтриране', () => {
-    beforeEach(() => {
-        // Зануляваме activeFilter чрез ново зареждане
+// ---------------------------------------------------------------------------
+// dashboardView — error state
+// ---------------------------------------------------------------------------
+
+describe('dashboardView — error state', () => {
+    it('показва съобщение за грешка при неуспешен fetch', async () => {
+        testService.getMyTests.mockRejectedValue(new Error('Мрежова грешка'));
         showDashboard();
+        await vi.waitUntil(() => document.getElementById('main').querySelector('.error'));
+        const main = document.getElementById('main');
+        const errorEl = main.querySelector('.error');
+        expect(errorEl).not.toBeNull();
+        expect(errorEl.textContent.length).toBeGreaterThan(0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// dashboardView — empty state
+// ---------------------------------------------------------------------------
+
+describe('dashboardView — empty state', () => {
+    it('показва empty-state при празен списък', async () => {
+        testService.getMyTests.mockResolvedValue([]);
+        showDashboard();
+        await vi.waitUntil(() => document.getElementById('main').querySelector('.test-grid'));
+        const main = document.getElementById('main');
+        const empty = main.querySelector('.empty-state');
+        expect(empty).not.toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// dashboardView — филтриране
+// ---------------------------------------------------------------------------
+
+describe('dashboardView — филтриране', () => {
+    beforeEach(async () => {
+        testService.getMyTests.mockResolvedValue(MOCK_TESTS);
+        showDashboard();
+        await vi.waitUntil(() => document.getElementById('main').querySelector('.test-grid'));
     });
 
     it('Click "Чернови" → показва 1 карта (draft)', () => {
@@ -103,7 +196,6 @@ describe('dashboardView.js — филтриране', () => {
     });
 
     it('активният filter-btn се обновява при клик', () => {
-        showDashboard();
         const main = document.getElementById('main');
 
         const draftBtn = Array.from(main.querySelectorAll('.filter-btn'))
