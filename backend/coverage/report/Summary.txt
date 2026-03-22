@@ -1,0 +1,58 @@
+Summary
+  Generated on: 3/22/2026 - 2:41:59 PM
+  Coverage date: 3/22/2026 - 2:41:36 PM
+  Parser: Cobertura
+  Assemblies: 1
+  Classes: 36
+  Files: 28
+  Line coverage: 89%
+  Covered lines: 662
+  Uncovered lines: 81
+  Coverable lines: 743
+  Total lines: 1521
+  Branch coverage: 61.6% (37 of 60)
+  Covered branches: 37
+  Total branches: 60
+  Method coverage: 84.1% (133 of 158)
+  Full method coverage: 79.1% (125 of 158)
+  Covered methods: 133
+  Fully covered methods: 125
+  Total methods: 158
+
+TestApp.Api                                              89%
+  Program                                               100%
+  TestApp.Api.Controllers.AuthController                100%
+  TestApp.Api.Controllers.TestsController                72%
+  TestApp.Api.Data.AppDbContext                        90.4%
+  TestApp.Api.Data.SeedData                            98.1%
+  TestApp.Api.Dtos.Auth.AuthResponse                    100%
+  TestApp.Api.Dtos.Auth.LoginRequest                    100%
+  TestApp.Api.Dtos.Auth.RegisterRequest                 100%
+  TestApp.Api.Dtos.Auth.UserDto                         100%
+  TestApp.Api.Dtos.Tests.AttemptAnswerDto               100%
+  TestApp.Api.Dtos.Tests.AttemptQuestionResult          100%
+  TestApp.Api.Dtos.Tests.AttemptResultResponse          100%
+  TestApp.Api.Dtos.Tests.CreateAnswerDto                100%
+  TestApp.Api.Dtos.Tests.CreateQuestionDto              100%
+  TestApp.Api.Dtos.Tests.CreateTestRequest              100%
+  TestApp.Api.Dtos.Tests.FullAnswerDto                    0%
+  TestApp.Api.Dtos.Tests.FullQuestionDto                  0%
+  TestApp.Api.Dtos.Tests.FullTestResponse                 0%
+  TestApp.Api.Dtos.Tests.PublicAnswerDto                100%
+  TestApp.Api.Dtos.Tests.PublicQuestionDto              100%
+  TestApp.Api.Dtos.Tests.PublicTestResponse             100%
+  TestApp.Api.Dtos.Tests.SubmitAttemptRequest           100%
+  TestApp.Api.Dtos.Tests.TestListItem                   100%
+  TestApp.Api.Extensions.ServiceCollectionExtensions    100%
+  TestApp.Api.Middleware.ExceptionMiddleware           77.1%
+  TestApp.Api.Models.Answer                            83.3%
+  TestApp.Api.Models.AppUser                            100%
+  TestApp.Api.Models.Attempt                            100%
+  TestApp.Api.Models.AttemptAnswer                       75%
+  TestApp.Api.Models.Category                           100%
+  TestApp.Api.Models.Question                          83.3%
+  TestApp.Api.Models.Test                               100%
+  TestApp.Api.Models.TestCategory                       100%
+  TestApp.Api.Services.AuthService                      100%
+  TestApp.Api.Services.ShareCodeGenerator              91.6%
+  TestApp.Api.Services.TestService                     85.2%

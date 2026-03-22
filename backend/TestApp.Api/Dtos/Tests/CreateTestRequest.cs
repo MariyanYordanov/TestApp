@@ -1,0 +1,46 @@
+// Стъпка 26 — CreateTestRequest.cs
+// DTO: заявка за създаване на нов тест
+using System.ComponentModel.DataAnnotations;
+
+namespace TestApp.Api.Dtos.Tests;
+
+public class CreateTestRequest
+{
+    // Заглавие на теста (задължително)
+    [Required(ErrorMessage = "Заглавието е задължително.")]
+    public string Title { get; set; } = string.Empty;
+
+    // Описание на теста
+    public string Description { get; set; } = string.Empty;
+
+    // Продължителност в секунди (по подразбиране 30 минути)
+    public int Duration { get; set; } = 1800;
+
+    // Идентификатори на категории
+    public List<string> CategoryIds { get; set; } = new();
+
+    // Въпроси в теста
+    public List<CreateQuestionDto> Questions { get; set; } = new();
+}
+
+// DTO за въпрос при създаване
+public class CreateQuestionDto
+{
+    // Текст на въпроса
+    [Required(ErrorMessage = "Текстът на въпроса е задължителен.")]
+    public string Text { get; set; } = string.Empty;
+
+    // Отговори към въпроса
+    public List<CreateAnswerDto> Answers { get; set; } = new();
+}
+
+// DTO за отговор при създаване
+public class CreateAnswerDto
+{
+    // Текст на отговора
+    [Required(ErrorMessage = "Текстът на отговора е задължителен.")]
+    public string Text { get; set; } = string.Empty;
+
+    // Дали отговорът е верен
+    public bool IsCorrect { get; set; }
+}
