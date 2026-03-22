@@ -1,0 +1,36 @@
+# Зависимости
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Покритие на тестове (генерирани файлове)
+frontend/coverage/
+
+# Build output
+frontend/dist/
+backend/bin/
+backend/obj/
+
+# ASP.NET Core
+backend/*.user
+backend/*.suo
+backend/.vs/
+
+# .NET
+*.nupkg
+*.snupkg
+
+# Environment файлове (тайни ключове)
+.env
+.env.local
+.env.*.local
+
+# OS файлове
+.DS_Store
+Thumbs.db
+
+# IDE файлове
+.vscode/
+.idea/
+*.swp
+*.swo

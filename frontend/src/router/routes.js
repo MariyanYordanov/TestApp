@@ -20,7 +20,7 @@ import { showTestTaking }  from '../views/participant/testTakingView.js';
 import { isAuthenticated } from '../services/auth.js';
 
 // Middleware — пренасочва към /login ако учителят не е влязъл
-function authGuard(_ctx, next) {
+export function authGuard(_ctx, next) {
     if (!isAuthenticated()) {
         page.redirect('/login');
         return;

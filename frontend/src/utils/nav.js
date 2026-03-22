@@ -27,7 +27,7 @@ export function setupNav() {
 }
 
 // Изгражда или скрива sidebar според текущото auth-състояние
-function updateNav(currentPath = '/') {
+export function updateNav(currentPath = '/') {
     const sidebar = document.getElementById('sidebar');
 
     if (!isAuthenticated()) {
@@ -47,7 +47,7 @@ function updateNav(currentPath = '/') {
 // --- Помощни функции за изграждане на DOM елементите ---
 
 // Хедър с лого и име на потребителя
-function buildHeader() {
+export function buildHeader() {
     const header = document.createElement('div');
     header.className = 'nav-header';
 
@@ -66,7 +66,7 @@ function buildHeader() {
 }
 
 // Списък с навигационни бутони
-function buildNavList(currentPath) {
+export function buildNavList(currentPath) {
     const ul = document.createElement('ul');
     ul.className = 'nav-list';
 
@@ -89,7 +89,7 @@ function buildNavList(currentPath) {
 }
 
 // Footer с бутон за изход
-function buildFooter() {
+export function buildFooter() {
     const footer = document.createElement('div');
     footer.className = 'nav-footer';
 

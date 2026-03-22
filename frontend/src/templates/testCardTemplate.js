@@ -113,7 +113,7 @@ function buildActionLink(href, label, className) {
 }
 
 // Форматира ISO дата до четим формат: "01.03.2026"
-function formatDate(isoString) {
+export function formatDate(isoString) {
     if (!isoString) return '—';
     const d = new Date(isoString);
     return d.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' });
