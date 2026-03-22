@@ -25,21 +25,23 @@ export function buildQuestionCard(question, index, { onChange, onRemove }) {
     answersSection.className = 'answers-section';
     answersSection.dataset.answersFor = question.id;
 
+    const answersCount = question.answers.length;
     question.answers.forEach(answer => {
         answersSection.appendChild(
-            buildAnswerRow(answer, question.id, groupName, onChange)
+            buildAnswerRow(answer, question.id, groupName, onChange, answersCount)
         );
     });
 
     card.appendChild(answersSection);
 
-    // --- Бутон "Добави отговор" ---
+    // --- Бутон "Добави отговор" (деактивиран при max 4) ---
     const addAnswerBtn = document.createElement('button');
     addAnswerBtn.type = 'button';
     addAnswerBtn.className = 'btn btn-sm btn-secondary';
     addAnswerBtn.dataset.action = 'add-answer';
     addAnswerBtn.dataset.questionId = question.id;
     addAnswerBtn.textContent = 'Добави отговор';
+    addAnswerBtn.disabled = answersCount >= 4;
     addAnswerBtn.addEventListener('click', () => onChange({ type: 'add-answer', questionId: question.id }));
 
     card.appendChild(addAnswerBtn);
@@ -82,7 +84,8 @@ function buildQuestionHeader(question, index, { onChange, onRemove }) {
 }
 
 // Ред за един отговор — radio + input + бутон за премахване
-function buildAnswerRow(answer, questionId, groupName, onChange) {
+// @param {number} totalAnswers — общ брой отговори (за disable на "Премахни" при min 2)
+function buildAnswerRow(answer, questionId, groupName, onChange, totalAnswers) {
     const row = document.createElement('div');
     row.className = 'answer-row';
     row.dataset.answerId = answer.id;
@@ -115,7 +118,8 @@ function buildAnswerRow(answer, questionId, groupName, onChange) {
     removeBtn.className = 'btn btn-sm';
     removeBtn.dataset.action = 'remove-answer';
     removeBtn.dataset.questionId = questionId;
-    removeBtn.textContent = 'X';
+    removeBtn.textContent = 'Премахни';
+    removeBtn.disabled = totalAnswers <= 2;
     removeBtn.addEventListener('click', () => onChange({
         type: 'remove-answer',
         questionId,

@@ -71,7 +71,8 @@ export function renderStepCategories(state, onStateChange, errors = []) {
 
 // Строи checkbox + label за една категория
 function buildCategoryCheckbox(category, state, onStateChange) {
-    const isChecked = state.categoryIds.includes(category.id);
+    const currentIds = state.categoryIds ?? [];
+    const isChecked = currentIds.includes(category.id);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'category-item';
@@ -83,7 +84,6 @@ function buildCategoryCheckbox(category, state, onStateChange) {
     checkbox.checked = isChecked;
 
     checkbox.addEventListener('change', () => {
-        const currentIds = state.categoryIds;
         const newIds = checkbox.checked
             ? [...currentIds, category.id]
             : currentIds.filter(id => id !== category.id);

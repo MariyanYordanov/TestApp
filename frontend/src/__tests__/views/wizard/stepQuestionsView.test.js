@@ -161,7 +161,7 @@ describe('validateStep3 — валидация на въпроси', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Чисти функции за state мутации
+// Чисти immutable функции за управление на state
 // ---------------------------------------------------------------------------
 
 describe('addQuestion', () => {
@@ -440,15 +440,25 @@ describe('renderStepQuestions — onChange от question card', () => {
         expect(newState.questions[0].answers.length).toBe(3);
     });
 
-    it('onChange при премахване на отговор обновява state', () => {
+    it('onChange при премахване на отговор обновява state (при 3 отговора)', () => {
         const onStateChange = vi.fn();
-        const state = makeState();
+        const state = makeState({
+            questions: [{
+                id: 'q-1',
+                text: 'Какво е JS?',
+                answers: [
+                    { id: 'a-1', text: 'Програмен език', isCorrect: true },
+                    { id: 'a-2', text: 'База данни', isCorrect: false },
+                    { id: 'a-3', text: 'Скрипт', isCorrect: false },
+                ],
+            }],
+        });
         const el = renderStepQuestions(state, onStateChange);
         const removeAnswerBtn = el.querySelector('[data-action="remove-answer"]');
         removeAnswerBtn.click();
         expect(onStateChange).toHaveBeenCalled();
         const newState = onStateChange.mock.calls[0][0];
-        expect(newState.questions[0].answers.length).toBe(1);
+        expect(newState.questions[0].answers.length).toBe(2);
     });
 
     it('onChange при промяна на текст на отговор обновява state', () => {

@@ -13,8 +13,6 @@ vi.mock('../../lib/page.min.js', () => ({
 const { showCreateTest } = await import('../../views/createTestView.js');
 const page = (await import('../../lib/page.min.js')).default;
 
-const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
-
 // ---------------------------------------------------------------------------
 // Помощна функция за ctx обект (page.js context)
 // ---------------------------------------------------------------------------

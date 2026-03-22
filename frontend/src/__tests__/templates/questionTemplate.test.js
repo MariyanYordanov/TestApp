@@ -2,8 +2,6 @@
 
 const { buildQuestionCard, buildReadonlyQuestionCard } = await import('../../templates/questionTemplate.js');
 
-const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
-
 // Помощна функция за създаване на примерен въпрос
 function makeQuestion(overrides = {}) {
     return {
@@ -153,9 +151,22 @@ describe('buildQuestionCard — бутон за премахване на отг
         expect(removeBtns.length).toBe(2);
     });
 
-    it('onChange се извиква при премахване на отговор', () => {
-        const onChange = vi.fn();
+    it('бутонът е disabled при точно 2 отговора (min)', () => {
         const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const removeBtns = card.querySelectorAll('[data-action="remove-answer"]');
+        removeBtns.forEach(btn => expect(btn.disabled).toBe(true));
+    });
+
+    it('onChange се извиква при премахване на отговор (при 3 отговора)', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion({
+            answers: [
+                { id: 'a-1', text: 'Отговор 1', isCorrect: true },
+                { id: 'a-2', text: 'Отговор 2', isCorrect: false },
+                { id: 'a-3', text: 'Отговор 3', isCorrect: false },
+            ],
+        });
         const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
         const removeBtn = card.querySelector('[data-action="remove-answer"]');
         removeBtn.click();

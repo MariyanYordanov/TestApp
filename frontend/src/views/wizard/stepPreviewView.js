@@ -4,6 +4,7 @@
 
 import page from '../../../lib/page.min.js';
 import { buildReadonlyQuestionCard } from '../../templates/questionTemplate.js';
+import { MOCK_CATEGORIES } from './stepCategoriesView.js';
 
 // ---------------------------------------------------------------------------
 // renderStepPreview — рендира DOM за Стъпка 4
@@ -45,12 +46,23 @@ function buildSummarySection(state) {
     description.className = 'preview-description';
     description.textContent = state.description;
 
+    // Избрани категории
+    const categoryIds = state.categoryIds ?? [];
+    const categoryNames = MOCK_CATEGORIES
+        .filter(c => categoryIds.includes(c.id))
+        .map(c => c.name)
+        .join(', ');
+    const categoriesEl = document.createElement('p');
+    categoriesEl.className = 'preview-categories';
+    categoriesEl.textContent = `Категории: ${categoryNames || '—'}`;
+
     const meta = document.createElement('p');
     meta.className = 'preview-meta';
     meta.textContent = `Въпроси: ${state.questions.length}`;
 
     section.appendChild(title);
     section.appendChild(description);
+    section.appendChild(categoriesEl);
     section.appendChild(meta);
 
     return section;
