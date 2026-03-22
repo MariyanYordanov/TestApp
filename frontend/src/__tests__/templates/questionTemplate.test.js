@@ -1,0 +1,215 @@
+// Тестове за templates/questionTemplate.js
+
+const { buildQuestionCard, buildReadonlyQuestionCard } = await import('../../templates/questionTemplate.js');
+
+const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
+
+// Помощна функция за създаване на примерен въпрос
+function makeQuestion(overrides = {}) {
+    return {
+        id: 'q-1',
+        text: 'Какво е JavaScript?',
+        answers: [
+            { id: 'a-1', text: 'Програмен език', isCorrect: true },
+            { id: 'a-2', text: 'База данни', isCorrect: false },
+        ],
+        ...overrides,
+    };
+}
+
+// ---------------------------------------------------------------------------
+// buildQuestionCard — editable (за Стъпка 3)
+// ---------------------------------------------------------------------------
+
+describe('buildQuestionCard — структура', () => {
+    it('връща DOM елемент', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        expect(card).toBeInstanceOf(HTMLElement);
+    });
+
+    it('съдържа индекс на въпроса', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 2, { onChange: vi.fn(), onRemove: vi.fn() });
+        expect(card.textContent).toContain('3');
+    });
+
+    it('съдържа textarea/input за текст на въпроса', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const input = card.querySelector('textarea') || card.querySelector('input[type="text"]');
+        expect(input).not.toBeNull();
+    });
+
+    it('попълва стойността на въпроса в полето', () => {
+        const q = makeQuestion({ text: 'Моят въпрос' });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const input = card.querySelector('textarea') || card.querySelector('input[type="text"]');
+        expect(input.value).toBe('Моят въпрос');
+    });
+
+    it('рендира бутон за премахване на въпроса', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const removeBtn = card.querySelector('[data-action="remove-question"]');
+        expect(removeBtn).not.toBeNull();
+    });
+
+    it('рендира всички отговори', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const answerRows = card.querySelectorAll('[data-answer-id]');
+        expect(answerRows.length).toBe(2);
+    });
+
+    it('рендира бутон "Добави отговор"', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const addBtn = card.querySelector('[data-action="add-answer"]');
+        expect(addBtn).not.toBeNull();
+    });
+});
+
+describe('buildQuestionCard — radio бутони за верен отговор', () => {
+    it('всеки отговор има radio бутон', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const radios = card.querySelectorAll('input[type="radio"]');
+        expect(radios.length).toBe(2);
+    });
+
+    it('верният отговор има checked radio', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const checkedRadio = card.querySelector('input[type="radio"]:checked');
+        expect(checkedRadio).not.toBeNull();
+        expect(checkedRadio.value).toBe('a-1');
+    });
+
+    it('неверните отговори нямат checked radio', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const radios = card.querySelectorAll('input[type="radio"]');
+        const unchecked = Array.from(radios).filter(r => !r.checked);
+        expect(unchecked.length).toBe(1);
+        expect(unchecked[0].value).toBe('a-2');
+    });
+});
+
+describe('buildQuestionCard — callbacks', () => {
+    it('onChange се извиква при промяна на текста на въпроса', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion({ text: '' });
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const input = card.querySelector('textarea') || card.querySelector('input[type="text"]');
+        input.value = 'Нов текст';
+        input.dispatchEvent(new Event('input'));
+        expect(onChange).toHaveBeenCalled();
+    });
+
+    it('onRemove се извиква при натискане на бутон за премахване', () => {
+        const onRemove = vi.fn();
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove });
+        const removeBtn = card.querySelector('[data-action="remove-question"]');
+        removeBtn.click();
+        expect(onRemove).toHaveBeenCalled();
+    });
+
+    it('onChange се извиква при промяна на текста на отговор', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const answerInputs = card.querySelectorAll('[data-answer-id] input[type="text"]');
+        answerInputs[0].value = 'Нов отговор';
+        answerInputs[0].dispatchEvent(new Event('input'));
+        expect(onChange).toHaveBeenCalled();
+    });
+
+    it('onChange се извиква при избор на верен отговор', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const radios = card.querySelectorAll('input[type="radio"]');
+        radios[1].dispatchEvent(new Event('change'));
+        expect(onChange).toHaveBeenCalled();
+    });
+
+    it('onChange се извиква при клик на "Добави отговор"', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const addBtn = card.querySelector('[data-action="add-answer"]');
+        addBtn.click();
+        expect(onChange).toHaveBeenCalled();
+    });
+});
+
+describe('buildQuestionCard — бутон за премахване на отговор', () => {
+    it('всеки отговор има бутон за премахване', () => {
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const removeBtns = card.querySelectorAll('[data-action="remove-answer"]');
+        expect(removeBtns.length).toBe(2);
+    });
+
+    it('onChange се извиква при премахване на отговор', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion();
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const removeBtn = card.querySelector('[data-action="remove-answer"]');
+        removeBtn.click();
+        expect(onChange).toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildReadonlyQuestionCard — readonly (за Стъпка 4)
+// ---------------------------------------------------------------------------
+
+describe('buildReadonlyQuestionCard — структура', () => {
+    it('връща DOM елемент', () => {
+        const q = makeQuestion();
+        const card = buildReadonlyQuestionCard(q, 0);
+        expect(card).toBeInstanceOf(HTMLElement);
+    });
+
+    it('показва номера на въпроса', () => {
+        const q = makeQuestion();
+        const card = buildReadonlyQuestionCard(q, 0);
+        expect(card.textContent).toContain('1');
+    });
+
+    it('показва текста на въпроса', () => {
+        const q = makeQuestion({ text: 'Какво е HTML?' });
+        const card = buildReadonlyQuestionCard(q, 0);
+        expect(card.textContent).toContain('Какво е HTML?');
+    });
+
+    it('показва всички отговори', () => {
+        const q = makeQuestion();
+        const card = buildReadonlyQuestionCard(q, 0);
+        expect(card.textContent).toContain('Програмен език');
+        expect(card.textContent).toContain('База данни');
+    });
+
+    it('не съдържа input или textarea елементи', () => {
+        const q = makeQuestion();
+        const card = buildReadonlyQuestionCard(q, 0);
+        expect(card.querySelectorAll('input, textarea').length).toBe(0);
+    });
+
+    it('маркира верния отговор визуално', () => {
+        const q = makeQuestion();
+        const card = buildReadonlyQuestionCard(q, 0);
+        const correctEl = card.querySelector('[data-correct="true"]');
+        expect(correctEl).not.toBeNull();
+    });
+
+    it('неверните отговори нямат data-correct="true"', () => {
+        const q = makeQuestion();
+        const card = buildReadonlyQuestionCard(q, 0);
+        const wrongEl = card.querySelectorAll('[data-correct="false"]');
+        expect(wrongEl.length).toBe(1);
+    });
+});
