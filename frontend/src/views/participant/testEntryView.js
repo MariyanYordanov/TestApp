@@ -3,7 +3,7 @@
 // Зарежда тест от сървъра чрез testService.getPublicTest.
 // Използва само createElement/textContent — никога innerHTML с потребителски данни.
 
-import page from '../../lib/page.min.js';
+import page from '../../../lib/page.min.js';
 import * as testService from '../../services/testService.js';
 import { formatTime } from '../../utils/timer.js';
 import { buildErrorCard } from './participantUtils.js';

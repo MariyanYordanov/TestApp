@@ -318,6 +318,19 @@ public class TestService : ITestService
         };
     }
 
+    // Публикува тест (Draft → Published)
+    public async Task<bool> PublishTestAsync(Guid testId, Guid ownerId)
+    {
+        var test = await _db.Tests
+            .FirstOrDefaultAsync(t => t.Id == testId && t.OwnerId == ownerId);
+
+        if (test is null) return false;
+
+        test.Status = TestStatus.Published;
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
     // Връща обобщените резултати на опитите за даден тест (само ако ownerId съвпада)
     public async Task<List<AttemptSummary>> GetAttemptsByTestAsync(Guid testId, Guid ownerId)
     {

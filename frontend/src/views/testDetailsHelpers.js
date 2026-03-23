@@ -85,7 +85,7 @@ export function buildMetaCard(test) {
     if (test.duration) {
         const duration = document.createElement('p');
         duration.className = 'test-duration';
-        duration.textContent = `Продължителност: ${test.duration} мин.`;
+        duration.textContent = `Продължителност: ${Math.round(test.duration / 60)} мин.`;
         card.appendChild(duration);
     }
 

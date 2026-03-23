@@ -96,6 +96,22 @@ public class TestsController : ControllerBase
         return Ok(attempts);
     }
 
+    // PUT api/tests/{id}/publish — публикува тест (Draft → Published)
+    [HttpPut("{id:guid}/publish")]
+    [Authorize]
+    public async Task<IActionResult> PublishTest(Guid id)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var success = await _testService.PublishTestAsync(id, ownerId);
+
+        if (!success)
+            return NotFound(new { error = "Тестът не е намерен." });
+
+        return NoContent();
+    }
+
     // POST api/tests/{shareCode}/attempts — предаване на опит (с rate limiting)
     [HttpPost("{shareCode}/attempts")]
     [AllowAnonymous]

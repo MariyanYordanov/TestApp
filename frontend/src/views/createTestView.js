@@ -26,6 +26,49 @@ function createInitialState() {
 }
 
 // ---------------------------------------------------------------------------
+// saveFocus / restoreFocus — запазва и възстановява фокуса след re-render.
+// Поддържа: елементи с id, textarea на въпрос, input на отговор.
+// ---------------------------------------------------------------------------
+function saveFocus() {
+    const el = document.activeElement;
+    if (!el || el === document.body) return null;
+
+    const focus = { selectionStart: el.selectionStart, selectionEnd: el.selectionEnd };
+
+    if (el.id) {
+        focus.selector = `#${el.id}`;
+        return focus;
+    }
+
+    const answerRow = el.closest('[data-answer-id]');
+    const questionCard = el.closest('[data-question-id]');
+
+    if (answerRow && questionCard) {
+        focus.selector = `[data-question-id="${questionCard.dataset.questionId}"] [data-answer-id="${answerRow.dataset.answerId}"] input[type="text"]`;
+        return focus;
+    }
+
+    if (questionCard && el.tagName === 'TEXTAREA') {
+        focus.selector = `[data-question-id="${questionCard.dataset.questionId}"] textarea`;
+        return focus;
+    }
+
+    return null;
+}
+
+function restoreFocus(focus) {
+    if (!focus?.selector) return;
+    const el = document.querySelector(focus.selector);
+    if (!el) return;
+    el.focus();
+    const supportsSelection = el.tagName === 'TEXTAREA' ||
+        (el.tagName === 'INPUT' && ['text', 'search', 'url', 'tel', 'password'].includes(el.type));
+    if (supportsSelection && focus.selectionStart !== undefined) {
+        el.setSelectionRange(focus.selectionStart, focus.selectionEnd);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // showCreateTest — entry point от routes.js
 //
 // @param {object} ctx — page.js context обект
@@ -49,9 +92,11 @@ export async function showCreateTest(ctx) {
 
     let state = createInitialState();
 
-    // Рендира wizard-а с текущия state
+    // Рендира wizard-а с текущия state, запазвайки фокуса
     function render(errors = []) {
+        const focus = saveFocus();
         main.replaceChildren(buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories));
+        restoreFocus(focus);
     }
 
     // Callback при промяна на state от стъпките

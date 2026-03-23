@@ -32,13 +32,13 @@ export async function getFullTest(testId) {
 // Зарежда публичната информация за тест по shareCode — БЕЗ JWT
 // Използва се от ученика, който НЕ е регистриран
 export async function getPublicTest(shareCode) {
-    return api.get(`/tests/public/${shareCode}`, { skipAuth: true });
+    return api.get(`/tests/${shareCode}`, { skipAuth: true });
 }
 
 // Изпраща отговорите на ученика и приключва опита — БЕЗ JWT
 // payload: { participantName, answers[] }
 export async function submitAttempt(shareCode, payload) {
-    return api.post(`/tests/public/${shareCode}/attempts`, payload, { skipAuth: true });
+    return api.post(`/tests/${shareCode}/attempts`, payload, { skipAuth: true });
 }
 
 // Зарежда всички опити (резултати на участниците) за конкретен тест

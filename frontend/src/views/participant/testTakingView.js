@@ -7,7 +7,7 @@
 //   Scoring е преместен на сървъра — collectAnswers() изпраща само { questionId, selectedAnswerId }.
 //   Submit извиква testService.submitAttempt и получава AttemptResultResponse.
 
-import page from '../../lib/page.min.js';
+import page from '../../../lib/page.min.js';
 import * as testService from '../../services/testService.js';
 import { createTimer, formatTime } from '../../utils/timer.js';
 import { buildResultsScreen } from './testResultsView.js';
