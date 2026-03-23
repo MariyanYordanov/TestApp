@@ -143,19 +143,72 @@ body {
 }
 
 /* ------------------------------------------------------------
-   Responsive — таблет и мобилен (под 768px)
+   Стъпка 56 — Мобилна навигация (под 768px)
+   Sidebar се плъзга от ляво, показва се при sidebar-open на body.
    ------------------------------------------------------------ */
 @media (max-width: 768px) {
     body {
         grid-template-columns: 1fr;
     }
 
+    /* Sidebar се скрива извън екрана вляво */
     #sidebar {
-        display: none !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 200;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
     }
 
+    /* Sidebar се показва при .sidebar-open на body */
+    body.sidebar-open #sidebar {
+        transform: translateX(0);
+    }
+
+    /* Overlay backdrop — затваря при клик извън sidebar */
+    body.sidebar-open::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 100;
+    }
+
+    /* Hamburger бутон — фиксиран горе-ляво */
+    .mobile-nav-toggle {
+        display: flex;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 300;
+        background: var(--color-primary, #4f46e5);
+        color: white;
+        border: none;
+        border-radius: var(--radius-md, 8px);
+        width: 2.5rem;
+        height: 2.5rem;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+
+    /* Offset на #main за да не се крие под hamburger бутона */
     #main {
         grid-column: 1;
         padding: 1rem;
+        padding-top: 4rem;
+    }
+}
+
+/* Desktop: hamburger се скрива */
+@media (min-width: 769px) {
+    .mobile-nav-toggle {
+        display: none;
     }
 }

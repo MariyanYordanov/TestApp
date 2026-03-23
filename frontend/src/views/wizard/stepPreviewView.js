@@ -5,6 +5,7 @@
 
 import page from '../../../lib/page.min.js';
 import { buildReadonlyQuestionCard } from '../../templates/questionTemplate.js';
+import { showToast } from '../../utils/notification.js';
 
 // ---------------------------------------------------------------------------
 // renderStepPreview — рендира DOM за Стъпка 4
@@ -123,6 +124,8 @@ function buildActionButtons(state, onBack, onSave, container) {
 
         try {
             await onSave(state);
+            // Известяваме потребителя за успешното запазване на теста
+            showToast('Тестът е запазен успешно.', 'success');
             page.redirect('/dashboard');
         } catch (err) {
             // Показваме грешката и активираме бутона отново

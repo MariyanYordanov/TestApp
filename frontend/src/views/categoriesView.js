@@ -9,6 +9,7 @@
 
 import * as categoryService from '../services/categoryService.js';
 import { buildCategoryList, buildAddCategoryForm } from '../templates/categoryListTemplate.js';
+import { showToast } from '../utils/notification.js';
 
 export async function showCategories(_ctx) {
     const main = document.getElementById('main');
@@ -77,6 +78,8 @@ async function handleAdd(name, currentCategories, main, errorArea) {
         const newCategory = await categoryService.createCategory(name.trim());
         // Имутабилно — създаваме нов масив с добавения елемент
         const updated = [...currentCategories, newCategory];
+        // Известяваме потребителя за успешното добавяне
+        showToast('Категорията е добавена.', 'success');
         renderPage(main, updated);
     } catch (err) {
         showError(errorArea, `Грешка при добавяне: ${err.message}`);
@@ -84,14 +87,21 @@ async function handleAdd(name, currentCategories, main, errorArea) {
 }
 
 // Обработва изтриване на категория по id
-// Извиква API, обновява списъка имутабилно (filter → нов масив)
+// Показва confirm диалог, извиква API, обновява списъка имутабилно (filter → нов масив)
 async function handleDelete(id, currentCategories, main, _listContainer, errorArea) {
+    // Искаме потвърждение от потребителя преди изтриване
+    if (!window.confirm('Наистина ли искате да изтриете тази категория?')) {
+        return;
+    }
+
     clearError(errorArea);
 
     try {
         await categoryService.deleteCategory(id);
         // Имутабилно — filter връща нов масив без изтрития елемент
         const updated = currentCategories.filter(cat => cat.id !== id);
+        // Известяваме потребителя за успешното изтриване
+        showToast('Категорията е изтрита.', 'success');
         renderPage(main, updated);
     } catch (err) {
         showError(errorArea, `Грешка при изтриване: ${err.message}`);

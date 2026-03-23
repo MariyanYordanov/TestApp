@@ -6,8 +6,13 @@ vi.mock('../../../lib/page.min.js', () => ({
     default: { redirect: vi.fn(), start: vi.fn() },
 }));
 
+vi.mock('../../../utils/notification.js', () => ({
+    showToast: vi.fn(),
+}));
+
 const { renderStepPreview } = await import('../../../views/wizard/stepPreviewView.js');
 const page = (await import('../../../lib/page.min.js')).default;
+const { showToast } = await import('../../../utils/notification.js');
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -199,6 +204,17 @@ describe('renderStepPreview — бутон "Запази като чернова
         saveBtn.click();
         await flushPromises();
         expect(page.redirect).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it('при успешен onSave показва toast с успешно съобщение', async () => {
+        vi.clearAllMocks();
+        const onSave = vi.fn().mockResolvedValue({ id: 'new-test-id' });
+        const state = makeFullState();
+        const el = renderStepPreview(state, vi.fn(), TEST_CATEGORIES, onSave);
+        const saveBtn = el.querySelector('[data-action="save-draft"]');
+        saveBtn.click();
+        await flushPromises();
+        expect(showToast).toHaveBeenCalledWith('Тестът е запазен успешно.', 'success');
     });
 });
 

@@ -19,10 +19,48 @@ const NAV_ITEMS = [
 ];
 
 // Регистрира middleware в page.js — при всяка смяна на route обновява nav-а
+// Стъпка 56: затваря мобилния sidebar при навигация
 export function setupNav() {
     page('*', (ctx, next) => {
+        document.body.classList.remove('sidebar-open');
         updateNav(ctx.path);
         next();
+    });
+    setupMobileNav();
+}
+
+// Стъпка 56 — Мобилен hamburger toggle.
+// Създава бутон само ако потребителят е автентикиран (sidebar е видим).
+// Предпазва от дублиране — премахва стар бутон преди да добави нов.
+export function setupMobileNav() {
+    // Само при автентикиран потребител sidebar е видим
+    if (!isAuthenticated()) return;
+
+    // Предпазваме от дублиране при повторно извикване
+    const existing = document.querySelector('.mobile-nav-toggle');
+    if (existing) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'mobile-nav-toggle';
+    btn.setAttribute('aria-label', 'Отвори навигацията');
+    btn.textContent = '☰';
+
+    // Превключва sidebar-open при клик
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.body.classList.toggle('sidebar-open');
+    });
+
+    document.body.appendChild(btn);
+
+    // Затваря sidebar при клик извън него
+    document.body.addEventListener('click', (e) => {
+        if (!document.body.classList.contains('sidebar-open')) return;
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.querySelector('.mobile-nav-toggle');
+        if (sidebar && sidebar.contains(e.target)) return;
+        if (toggle && toggle.contains(e.target)) return;
+        document.body.classList.remove('sidebar-open');
     });
 }
 

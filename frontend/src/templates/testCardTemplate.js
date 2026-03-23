@@ -8,6 +8,8 @@
 // Правило (Вариант Б): title и shareCode са потребителски данни
 // → вкарват се само с textContent, никога с innerHTML.
 
+import { formatDate } from '../utils/formatDate.js';
+
 // Речник за превод на статусите
 const STATUS_LABELS = {
     draft:     'Чернова',
@@ -112,9 +114,5 @@ function buildActionLink(href, label, className) {
     return a;
 }
 
-// Форматира ISO дата до четим формат: "01.03.2026"
-export function formatDate(isoString) {
-    if (!isoString) return '—';
-    const d = new Date(isoString);
-    return d.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
+// Повторен експорт за обратна съвместимост с тестовете
+export { formatDate };

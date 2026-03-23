@@ -28,6 +28,35 @@ export function authGuard(_ctx, next) {
     next();
 }
 
+// Стъпка 59 — routes.js
+// Предпазен wrapper за view функции — хваща неочаквани грешки
+// и показва user-friendly съобщение вместо бяла страница
+export async function safeRender(viewFn, ctx) {
+    try {
+        await viewFn(ctx);
+    } catch (err) {
+        console.error('View render error:', err);
+        const main = document.getElementById('main');
+        if (main) {
+            const errEl = document.createElement('div');
+            errEl.className = 'error-card';
+
+            const msg = document.createElement('p');
+            msg.textContent = 'Нещо се обърка. Моля, опитайте отново.';
+
+            const link = document.createElement('a');
+            link.href = '/';
+            link.className = 'btn btn-secondary';
+            link.textContent = 'Към началото';
+
+            errEl.appendChild(msg);
+            errEl.appendChild(link);
+            main.innerHTML = '';
+            main.appendChild(errEl);
+        }
+    }
+}
+
 export function initRoutes() {
 
     // ----------------------------------------------------------
@@ -46,14 +75,15 @@ export function initRoutes() {
 
     // ----------------------------------------------------------
     // Учителски routes — изискват JWT токен (authGuard)
+    // Всеки view е обвит в safeRender за защита от неочаквани грешки
     // ----------------------------------------------------------
-    page('/dashboard',          authGuard, showDashboard);
-    page('/tests/create',       authGuard, showCreateTest);
-    page('/tests/:id/edit',     authGuard, showCreateTest);  // същият view, режим "редактиране"
-    page('/tests/:id',          authGuard, showTestDetails);
-    page('/categories',         authGuard, showCategories);
-    page('/statistics',         authGuard, showStatistics);
-    page('/account',            authGuard, showAccount);
+    page('/dashboard',          authGuard, (ctx) => safeRender(showDashboard, ctx));
+    page('/tests/create',       authGuard, (ctx) => safeRender(showCreateTest, ctx));
+    page('/tests/:id/edit',     authGuard, (ctx) => safeRender(showCreateTest, ctx));  // същият view, режим "редактиране"
+    page('/tests/:id',          authGuard, (ctx) => safeRender(showTestDetails, ctx));
+    page('/categories',         authGuard, (ctx) => safeRender(showCategories, ctx));
+    page('/statistics',         authGuard, (ctx) => safeRender(showStatistics, ctx));
+    page('/account',            authGuard, (ctx) => safeRender(showAccount, ctx));
 
     // ----------------------------------------------------------
     // 404 — всеки непознат URL

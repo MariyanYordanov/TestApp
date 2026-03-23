@@ -10,6 +10,7 @@ import { renderStepPreview } from './wizard/stepPreviewView.js';
 import { buildStepper } from './wizard/wizardStepper.js';
 import * as categoryService from '../services/categoryService.js';
 import * as testService from '../services/testService.js';
+import { showToast } from '../utils/notification.js';
 
 // ---------------------------------------------------------------------------
 // Начален state на wizard-а
@@ -43,6 +44,7 @@ export async function showCreateTest(ctx) {
     } catch {
         // При грешка продължаваме с празен масив — потребителят ще види съобщение в Стъпка 2
         categories = [];
+        showToast('Категориите не могат да бъдат заредени.', 'error');
     }
 
     let state = createInitialState();

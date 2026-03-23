@@ -209,3 +209,38 @@ describe('dashboardView — филтриране', () => {
         expect(allBtn.classList.contains('active')).toBe(false);
     });
 });
+
+// ---------------------------------------------------------------------------
+// dashboardView — нулиране на филтъра при ново зареждане
+// ---------------------------------------------------------------------------
+
+describe('dashboardView — нулиране на activeFilter', () => {
+    it('нулира activeFilter на "all" при всяко ново зареждане', async () => {
+        // Първо зареждане — смяна на филтъра
+        testService.getMyTests.mockResolvedValue(MOCK_TESTS);
+        showDashboard();
+        await vi.waitUntil(() => document.getElementById('main').querySelector('.test-grid'));
+
+        const main = document.getElementById('main');
+        const draftBtn = Array.from(main.querySelectorAll('.filter-btn'))
+            .find(b => b.dataset.filter === 'draft');
+        draftBtn.click(); // activeFilter = 'draft'
+
+        // Второ зареждане — очакваме "all" да е активен
+        testService.getMyTests.mockResolvedValue(MOCK_TESTS);
+        showDashboard();
+        await vi.waitUntil(() => {
+            const allBtn = Array.from(document.getElementById('main').querySelectorAll('.filter-btn'))
+                .find(b => b.dataset.filter === 'all');
+            return allBtn && allBtn.classList.contains('active');
+        });
+
+        const allBtn = Array.from(document.getElementById('main').querySelectorAll('.filter-btn'))
+            .find(b => b.dataset.filter === 'all');
+        expect(allBtn.classList.contains('active')).toBe(true);
+
+        // Grid трябва да показва всички 3 теста
+        const cards = document.getElementById('main').querySelectorAll('.test-card');
+        expect(cards.length).toBe(3);
+    });
+});

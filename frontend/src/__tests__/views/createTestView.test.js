@@ -21,10 +21,15 @@ vi.mock('../../services/testService.js', () => ({
     getMyTests: vi.fn(),
 }));
 
+vi.mock('../../utils/notification.js', () => ({
+    showToast: vi.fn(),
+}));
+
 const { showCreateTest } = await import('../../views/createTestView.js');
 const page = (await import('../../lib/page.min.js')).default;
 const categoryService = await import('../../services/categoryService.js');
 const testService = await import('../../services/testService.js');
+const { showToast } = await import('../../utils/notification.js');
 
 // ---------------------------------------------------------------------------
 // Тестови категории
@@ -382,6 +387,15 @@ describe('createTestView — категории от API', () => {
         // При грешка → 0 checkboxes
         const checkboxes = main.querySelectorAll('input[type="checkbox"]');
         expect(checkboxes.length).toBe(0);
+    });
+
+    it('при грешка при зареждане на категории показва toast с грешка', async () => {
+        vi.clearAllMocks();
+        categoryService.getCategories.mockRejectedValue(new Error('Мрежова грешка'));
+        showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
+
+        expect(showToast).toHaveBeenCalledWith('Категориите не могат да бъдат заредени.', 'error');
     });
 });
 

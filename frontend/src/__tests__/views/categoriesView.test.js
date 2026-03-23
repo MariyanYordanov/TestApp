@@ -7,8 +7,13 @@ vi.mock('../../services/categoryService.js', () => ({
     deleteCategory: vi.fn(),
 }));
 
+vi.mock('../../utils/notification.js', () => ({
+    showToast: vi.fn(),
+}));
+
 const { showCategories } = await import('../../views/categoriesView.js');
 const categoryService = await import('../../services/categoryService.js');
+const { showToast } = await import('../../utils/notification.js');
 
 // ---------------------------------------------------------------------------
 // Помощни данни
@@ -84,6 +89,7 @@ describe('categoriesView — рендиране', () => {
 
 describe('categoriesView — добавяне', () => {
     beforeEach(async () => {
+        vi.clearAllMocks();
         categoryService.getCategories.mockResolvedValue(MOCK_CATEGORIES);
         categoryService.createCategory.mockResolvedValue({ id: 'c4', name: 'Биология' });
         showCategories({});
@@ -164,6 +170,19 @@ describe('categoriesView — добавяне', () => {
         await vi.waitUntil(() => main.querySelector('.error'));
         expect(main.querySelector('.error')).not.toBeNull();
     });
+
+    it('след успешно добавяне показва toast с успешно съобщение', async () => {
+        const main = document.getElementById('main');
+        const input = main.querySelector('input');
+        const addBtn = Array.from(main.querySelectorAll('button'))
+            .find(b => b.textContent.includes('Добави'));
+
+        input.value = 'Биология';
+        addBtn.click();
+
+        await vi.waitUntil(() => main.textContent.includes('Биология'));
+        expect(showToast).toHaveBeenCalledWith('Категорията е добавена.', 'success');
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -172,6 +191,9 @@ describe('categoriesView — добавяне', () => {
 
 describe('categoriesView — изтриване', () => {
     beforeEach(async () => {
+        vi.clearAllMocks();
+        // По подразбиране потребителят потвърждава изтриването
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
         categoryService.getCategories.mockResolvedValue(MOCK_CATEGORIES);
         categoryService.deleteCategory.mockResolvedValue(null);
         showCategories({});
@@ -237,6 +259,50 @@ describe('categoriesView — изтриване', () => {
 
         await vi.waitUntil(() => main.querySelector('.error'));
         expect(main.querySelector('.error')).not.toBeNull();
+    });
+
+    it('след успешно изтриване показва toast с успешно съобщение', async () => {
+        const main = document.getElementById('main');
+        const items = main.querySelectorAll('[data-category-id]');
+        const firstItem = items[0];
+        const deleteBtn = Array.from(firstItem.querySelectorAll('button'))
+            .find(b => b.textContent.includes('Изтрий') || b.dataset.action === 'delete');
+
+        deleteBtn.click();
+
+        await vi.waitUntil(() => main.querySelectorAll('[data-category-id]').length === 2);
+        expect(showToast).toHaveBeenCalledWith('Категорията е изтрита.', 'success');
+    });
+
+    it('показва confirm диалог преди изтриване', async () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+        const main = document.getElementById('main');
+        const items = main.querySelectorAll('[data-category-id]');
+        const firstItem = items[0];
+        const deleteBtn = Array.from(firstItem.querySelectorAll('button'))
+            .find(b => b.textContent.includes('Изтрий') || b.dataset.action === 'delete');
+
+        deleteBtn.click();
+
+        await vi.waitUntil(() => confirmSpy.mock.calls.length > 0);
+        expect(confirmSpy).toHaveBeenCalled();
+    });
+
+    it('при отмяна на confirm не извиква deleteCategory', async () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(false);
+        categoryService.deleteCategory.mockClear();
+
+        const main = document.getElementById('main');
+        const items = main.querySelectorAll('[data-category-id]');
+        const firstItem = items[0];
+        const deleteBtn = Array.from(firstItem.querySelectorAll('button'))
+            .find(b => b.textContent.includes('Изтрий') || b.dataset.action === 'delete');
+
+        deleteBtn.click();
+
+        // deleteCategory не трябва да е извикан
+        expect(categoryService.deleteCategory).not.toHaveBeenCalled();
     });
 });
 

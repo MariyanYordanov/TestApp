@@ -15,6 +15,9 @@ import * as testService from '../services/testService.js';
 let activeFilter = 'all';
 
 export async function showDashboard() {
+    // Нулираме филтъра при всяко ново зареждане на страницата
+    activeFilter = 'all';
+
     const main = document.getElementById('main');
     main.className = ''; // Премахваме 'centered' от login страницата
 

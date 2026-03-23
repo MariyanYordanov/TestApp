@@ -1,13 +1,7 @@
 // Стъпка 49 — statsTableTemplate.js
 // Шаблон за таблица с резултати от опити
 
-// Форматира дата за показване в bg-BG формат
-function formatDate(isoString) {
-    if (!isoString) return '—';
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
+import { formatDate } from '../utils/formatDate.js';
 
 // Изчислява процент без деление на нула
 function calcPercent(score, total) {

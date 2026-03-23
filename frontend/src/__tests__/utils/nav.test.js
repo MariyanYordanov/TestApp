@@ -8,7 +8,7 @@ vi.mock('../../services/auth.js', () => ({
 }));
 
 const { isAuthenticated, logout, getUser } = await import('../../services/auth.js');
-const { updateNav, buildNavList, buildHeader, buildFooter } = await import('../../utils/nav.js');
+const { updateNav, buildNavList, buildHeader, buildFooter, setupMobileNav } = await import('../../utils/nav.js');
 const page = (await import('../../lib/page.min.js')).default;
 
 describe('updateNav() — неавтентикиран потребител', () => {
@@ -105,6 +105,71 @@ describe('buildHeader()', () => {
         const header = buildHeader();
         const userName = header.querySelector('.nav-user');
         expect(userName.textContent).toBe('');
+    });
+});
+
+describe('setupMobileNav() — hamburger toggle', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        // Изчистваме body от предишни toggle бутони
+        document.querySelectorAll('.mobile-nav-toggle').forEach(el => el.remove());
+        document.body.classList.remove('sidebar-open');
+    });
+
+    afterEach(() => {
+        document.querySelectorAll('.mobile-nav-toggle').forEach(el => el.remove());
+        document.body.classList.remove('sidebar-open');
+    });
+
+    it('не създава toggle бутон при неавтентикиран потребител', () => {
+        isAuthenticated.mockReturnValue(false);
+        setupMobileNav();
+        expect(document.querySelector('.mobile-nav-toggle')).toBeNull();
+    });
+
+    it('създава toggle бутон при автентикиран потребител', () => {
+        isAuthenticated.mockReturnValue(true);
+        setupMobileNav();
+        expect(document.querySelector('.mobile-nav-toggle')).not.toBeNull();
+    });
+
+    it('toggle бутонът добавя sidebar-open към body при клик', () => {
+        isAuthenticated.mockReturnValue(true);
+        setupMobileNav();
+        const btn = document.querySelector('.mobile-nav-toggle');
+        btn.click();
+        expect(document.body.classList.contains('sidebar-open')).toBe(true);
+    });
+
+    it('toggle бутонът премахва sidebar-open при втори клик', () => {
+        isAuthenticated.mockReturnValue(true);
+        setupMobileNav();
+        const btn = document.querySelector('.mobile-nav-toggle');
+        btn.click();
+        btn.click();
+        expect(document.body.classList.contains('sidebar-open')).toBe(false);
+    });
+
+    it('клик извън sidebar затваря менюто', () => {
+        isAuthenticated.mockReturnValue(true);
+        setupMobileNav();
+        const btn = document.querySelector('.mobile-nav-toggle');
+        btn.click();
+        expect(document.body.classList.contains('sidebar-open')).toBe(true);
+
+        // Симулираме клик върху body (извън sidebar и toggle)
+        const event = new MouseEvent('click', { bubbles: true });
+        Object.defineProperty(event, 'target', { value: document.body });
+        document.body.dispatchEvent(event);
+        expect(document.body.classList.contains('sidebar-open')).toBe(false);
+    });
+
+    it('не създава дублиращ се бутон при повторно извикване', () => {
+        isAuthenticated.mockReturnValue(true);
+        setupMobileNav();
+        setupMobileNav();
+        const btns = document.querySelectorAll('.mobile-nav-toggle');
+        expect(btns.length).toBe(1);
     });
 });
 
