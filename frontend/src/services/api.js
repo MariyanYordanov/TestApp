@@ -53,7 +53,8 @@ async function request(url, options = {}) {
     // Всички останали грешки (400, 403, 500...)
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `Грешка ${response.status}`);
+        // Backend връща { error: "..." }, браузърът чете { message: "..." }
+        throw new Error(error.error || error.message || error.title || `Грешка ${response.status}`);
     }
 
     return response.json();

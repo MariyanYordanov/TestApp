@@ -241,6 +241,209 @@
 }
 
 /* ------------------------------------------------------------
+   Test Entry — картата за влизане в тест
+   ------------------------------------------------------------ */
+.test-entry-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-sm);
+    max-width: 480px;
+    width: 100%;
+}
+
+.test-entry-info {
+    margin-bottom: 1.5rem;
+}
+
+.test-entry-info h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+}
+
+.test-entry-info .test-description {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.test-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.meta-sep {
+    opacity: 0.5;
+}
+
+.test-entry-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.test-entry-form label {
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+}
+
+.test-entry-form input[type='text'] {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+    box-sizing: border-box;
+}
+
+.test-entry-form input[type='text']:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.test-entry-form .btn {
+    width: 100%;
+    justify-content: center;
+}
+
+/* ------------------------------------------------------------
+   Sticky header — заглавие и таймер (sticky при скрол)
+   ------------------------------------------------------------ */
+.test-sticky-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 0.875rem 1.25rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: var(--shadow-sm);
+}
+
+.sticky-title {
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.timer-display {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.timer-display.timer-warning {
+    color: var(--color-danger);
+    animation: pulse 1s ease infinite;
+}
+
+/* ------------------------------------------------------------
+   Progress dots — навигация на въпросите
+   ------------------------------------------------------------ */
+.question-progress {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 0.25rem 0;
+}
+
+.question-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: 2px solid var(--color-border);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+}
+
+.question-dot.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-white);
+}
+
+/* ------------------------------------------------------------
+   Question area + Nav row
+   ------------------------------------------------------------ */
+.question-area {
+    min-height: 200px;
+}
+
+.test-nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 2rem;
+}
+
+/* ------------------------------------------------------------
+   Открит отговор (Open въпрос)
+   ------------------------------------------------------------ */
+.open-answer-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+    resize: vertical;
+    min-height: 100px;
+    box-sizing: border-box;
+    margin-top: 0.5rem;
+}
+
+.open-answer-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* ------------------------------------------------------------
+   Код отговор (Monaco редактор)
+   ------------------------------------------------------------ */
+.code-answer-wrapper {
+    margin-top: 0.75rem;
+}
+
+.monaco-editor-container {
+    width: 100%;
+    height: 220px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #fff;
+}
+
+.code-fallback {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875rem;
+    resize: vertical;
+}
+
+/* ------------------------------------------------------------
    Error карта (при невалиден shareCode)
    ------------------------------------------------------------ */
 .error-card {

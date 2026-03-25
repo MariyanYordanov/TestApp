@@ -31,7 +31,7 @@ describe('accountView — пренасочване при липса на пот
         const main = document.getElementById('main');
         main.innerHTML = '';
         showAccount({});
-        expect(main.querySelector('.page-container')).toBeNull();
+        expect(main.querySelector('.account-page')).toBeNull();
     });
 });
 
@@ -43,9 +43,9 @@ describe('accountView — рендиране с потребителски да�
         showAccount({});
     });
 
-    it('рендира .page-container', () => {
+    it('рендира .account-page', () => {
         const main = document.getElementById('main');
-        expect(main.querySelector('.page-container')).not.toBeNull();
+        expect(main.querySelector('.account-page')).not.toBeNull();
     });
 
     it('рендира h1 "Акаунт"', () => {
@@ -65,10 +65,10 @@ describe('accountView — рендиране с потребителски да�
         expect(main.textContent).toContain('Иван Иванов');
     });
 
-    it('рендира бутон "Изход"', () => {
+    it('рендира бутон "Изход от акаунта"', () => {
         const main = document.getElementById('main');
         const btn = Array.from(main.querySelectorAll('button'))
-            .find(b => b.textContent === 'Изход');
+            .find(b => b.textContent === 'Изход от акаунта');
         expect(btn).not.toBeNull();
     });
 
@@ -88,7 +88,7 @@ describe('accountView — logout бутон', () => {
     it('извиква logout() при клик на бутона', () => {
         const main = document.getElementById('main');
         const btn = Array.from(main.querySelectorAll('button'))
-            .find(b => b.textContent === 'Изход');
+            .find(b => b.textContent === 'Изход от акаунта');
         btn.click();
         expect(logout).toHaveBeenCalledOnce();
     });
@@ -96,7 +96,7 @@ describe('accountView — logout бутон', () => {
     it('пренасочва към / след logout', () => {
         const main = document.getElementById('main');
         const btn = Array.from(main.querySelectorAll('button'))
-            .find(b => b.textContent === 'Изход');
+            .find(b => b.textContent === 'Изход от акаунта');
         btn.click();
         expect(page.redirect).toHaveBeenCalledWith('/');
     });

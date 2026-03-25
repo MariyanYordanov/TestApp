@@ -1,5 +1,6 @@
 // Стъпка 23 — AttemptAnswer.cs
 // Entity: избран отговор в опит
+using System.ComponentModel.DataAnnotations;
 namespace TestApp.Api.Models;
 
 public class AttemptAnswer
@@ -24,6 +25,10 @@ public class AttemptAnswer
 
     // Навигационно свойство към избрания отговор
     public Answer? SelectedAnswer { get; set; }
+
+    // Свободен текстов отговор (за Open и Code въпроси)
+    [MaxLength(50000)]
+    public string? OpenText { get; set; }
 
     // Дали отговорът е верен
     public bool IsCorrect { get; set; }

@@ -16,7 +16,7 @@ import { showToast } from '../../utils/notification.js';
 // @param {function|null} onSave     — async callback(state) за запазване чрез API
 // @returns {HTMLElement}
 // ---------------------------------------------------------------------------
-export function renderStepPreview(state, onBack, categories = [], onSave = null) {
+export function renderStepPreview(state, onBack, categories = [], onSave = null, editId = null) {
     const container = document.createElement('div');
     container.className = 'step-content step-preview';
 
@@ -32,7 +32,7 @@ export function renderStepPreview(state, onBack, categories = [], onSave = null)
     container.appendChild(buildQuestionsSection(state));
 
     // Навигационни бутони
-    container.appendChild(buildActionButtons(state, onBack, onSave, container));
+    container.appendChild(buildActionButtons(state, onBack, onSave, container, editId));
 
     return container;
 }
@@ -87,10 +87,24 @@ function buildQuestionsSection(state) {
     return section;
 }
 
-// Бутони: "Назад" и "Запази като чернова"
-function buildActionButtons(state, onBack, onSave, container) {
+// Бутони: "Откажи", "Назад" и "Запази като чернова"
+function buildActionButtons(state, onBack, onSave, container, editId) {
     const bar = document.createElement('div');
-    bar.className = 'wizard-actions';
+    bar.className = 'wizard-nav';
+
+    // Бутон "Откажи"
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.dataset.action = 'cancel';
+    cancelBtn.textContent = 'Откажи';
+    cancelBtn.addEventListener('click', () => {
+        page.redirect(editId ? `/tests/${editId}` : '/dashboard');
+    });
+    bar.appendChild(cancelBtn);
+
+    const rightGroup = document.createElement('div');
+    rightGroup.className = 'wizard-nav-right';
 
     // Бутон "Назад"
     const backBtn = document.createElement('button');
@@ -99,13 +113,14 @@ function buildActionButtons(state, onBack, onSave, container) {
     backBtn.dataset.action = 'back';
     backBtn.textContent = 'Назад';
     backBtn.addEventListener('click', () => onBack());
+    rightGroup.appendChild(backBtn);
 
     // Бутон "Запази като чернова"
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'btn btn-primary';
     saveBtn.dataset.action = 'save-draft';
-    saveBtn.textContent = 'Запази като чернова';
+    saveBtn.textContent = editId ? 'Запази промените' : 'Запази като чернова';
 
     saveBtn.addEventListener('click', async () => {
         if (!onSave) {
@@ -123,24 +138,22 @@ function buildActionButtons(state, onBack, onSave, container) {
         if (prevError) prevError.remove();
 
         try {
-            await onSave(state);
-            // Известяваме потребителя за успешното запазване на теста
-            showToast('Тестът е запазен успешно.', 'success');
-            page.redirect('/dashboard');
+            const saved = await onSave(state);
+            showToast(editId ? 'Промените са запазени.' : 'Тестът е запазен успешно.', 'success');
+            page.redirect(saved?.id ? `/tests/${saved.id}` : '/dashboard');
         } catch (err) {
-            // Показваме грешката и активираме бутона отново
             const errorEl = document.createElement('p');
             errorEl.className = 'form-error save-error';
             errorEl.textContent = err.message || 'Грешка при запазване. Опитайте отново.';
-            bar.appendChild(errorEl);
+            rightGroup.appendChild(errorEl);
 
             saveBtn.disabled = false;
-            saveBtn.textContent = 'Запази като чернова';
+            saveBtn.textContent = editId ? 'Запази промените' : 'Запази като чернова';
         }
     });
 
-    bar.appendChild(backBtn);
-    bar.appendChild(saveBtn);
+    rightGroup.appendChild(saveBtn);
+    bar.appendChild(rightGroup);
 
     return bar;
 }

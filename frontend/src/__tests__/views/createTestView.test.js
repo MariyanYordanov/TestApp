@@ -371,8 +371,9 @@ describe('createTestView — категории от API', () => {
     });
 
     it('при грешка при зареждане на категории показва 0 checkboxes на Стъпка 2', async () => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         categoryService.getCategories.mockRejectedValue(new Error('Мрежова грешка'));
+        document.getElementById('main').replaceChildren();
         showCreateTest(makeCtx());
         await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
 
@@ -390,8 +391,9 @@ describe('createTestView — категории от API', () => {
     });
 
     it('при грешка при зареждане на категории показва toast с грешка', async () => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         categoryService.getCategories.mockRejectedValue(new Error('Мрежова грешка'));
+        document.getElementById('main').replaceChildren();
         showCreateTest(makeCtx());
         await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
 
@@ -465,6 +467,6 @@ describe('createTestView — запазване чрез testService', () => {
         saveBtn.click();
         await flushPromises();
 
-        expect(page.redirect).toHaveBeenCalledWith('/dashboard');
+        expect(page.redirect).toHaveBeenCalledWith('/tests/new-test-id');
     });
 });

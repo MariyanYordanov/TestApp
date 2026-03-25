@@ -21,6 +21,10 @@ public class AttemptAnswerDto
     // Идентификатор на въпроса
     public Guid QuestionId { get; set; }
 
-    // Идентификатор на избрания отговор (null ако не е избран)
+    // Идентификатор на избрания отговор (null за Open/Code въпроси)
     public Guid? SelectedAnswerId { get; set; }
+
+    // Свободен текстов отговор (само за Open и Code въпроси)
+    [MaxLength(50000, ErrorMessage = "Отговорът не може да надвишава 50 000 символа.")]
+    public string? OpenText { get; set; }
 }

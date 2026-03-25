@@ -1,105 +1,156 @@
 // Стъпка 11 — questionTemplate.js
 // DOM шаблони за въпрос: editable (Стъпка 3) и readonly (Стъпка 4).
+// Поддържа типове: Closed (радио), Multi (checkbox), Open (без отговори).
 // Без innerHTML за потребителски данни — само createElement/textContent.
+
+const QUESTION_TYPES = [
+    { value: 'Closed', label: 'Затворен (1 верен)' },
+    { value: 'Multi',  label: 'Многократен (няколко верни)' },
+    { value: 'Open',   label: 'Отворен (текстов отговор)' },
+    { value: 'Code',   label: 'Код (Monaco редактор)' },
+];
 
 // ---------------------------------------------------------------------------
 // buildQuestionCard — editable карта за Стъпка 3 (Въпроси)
-//
-// @param {object} question   — обект с id, text, answers[]
-// @param {number} index      — 0-базиран индекс (показва се като index+1)
-// @param {object} callbacks  — { onChange(patch), onRemove() }
 // ---------------------------------------------------------------------------
 export function buildQuestionCard(question, index, { onChange, onRemove }) {
-    // Radio group е уникален по question.id — не е нужен споделен брояч
-    const groupName = `correct-answer-${question.id}`;
+    const qType = question.type ?? 'Closed';
 
     const card = document.createElement('div');
-    card.className = 'question-card card';
+    card.className = 'question-card';
     card.dataset.questionId = question.id;
 
-    // --- Хедър на въпроса ---
-    card.appendChild(buildQuestionHeader(question, index, { onChange, onRemove }));
+    card.appendChild(buildQuestionHeader(question, index, qType, { onChange, onRemove }));
 
-    // --- Отговори ---
-    const answersSection = document.createElement('div');
-    answersSection.className = 'answers-section';
-    answersSection.dataset.answersFor = question.id;
+    // Отговорите се показват само за Closed и Multi
+    const isOpenLike = qType === 'Open' || qType === 'Code';
+    if (!isOpenLike) {
+        const groupName = `correct-answer-${question.id}`;
+        const answersSection = document.createElement('div');
+        answersSection.className = 'answers-section';
+        answersSection.dataset.answersFor = question.id;
 
-    const answersCount = question.answers.length;
-    question.answers.forEach(answer => {
-        answersSection.appendChild(
-            buildAnswerRow(answer, question.id, groupName, onChange, answersCount)
-        );
-    });
+        const answersCount = question.answers.length;
+        question.answers.forEach(answer => {
+            answersSection.appendChild(
+                buildAnswerRow(answer, question.id, groupName, qType, onChange, answersCount)
+            );
+        });
 
-    card.appendChild(answersSection);
+        card.appendChild(answersSection);
 
-    // --- Бутон "Добави отговор" (деактивиран при max 4) ---
-    const addAnswerBtn = document.createElement('button');
-    addAnswerBtn.type = 'button';
-    addAnswerBtn.className = 'btn btn-sm btn-secondary';
-    addAnswerBtn.dataset.action = 'add-answer';
-    addAnswerBtn.dataset.questionId = question.id;
-    addAnswerBtn.textContent = 'Добави отговор';
-    addAnswerBtn.disabled = answersCount >= 4;
-    addAnswerBtn.addEventListener('click', () => onChange({ type: 'add-answer', questionId: question.id }));
-
-    card.appendChild(addAnswerBtn);
+        const addAnswerBtn = document.createElement('button');
+        addAnswerBtn.type = 'button';
+        addAnswerBtn.className = 'btn btn-sm btn-secondary';
+        addAnswerBtn.dataset.action = 'add-answer';
+        addAnswerBtn.textContent = '+ Добави отговор';
+        addAnswerBtn.disabled = answersCount >= 4;
+        addAnswerBtn.addEventListener('click', () => onChange({ type: 'add-answer', questionId: question.id }));
+        card.appendChild(addAnswerBtn);
+    } else {
+        const hint = document.createElement('p');
+        hint.className = 'open-question-hint';
+        hint.textContent = qType === 'Code'
+            ? 'Ученикът ще напише код в Monaco редактора.'
+            : 'Ученикът ще напише свободен текстов отговор.';
+        card.appendChild(hint);
+    }
 
     return card;
 }
 
-// Хедър — номер + textarea за текст + бутон за премахване
-function buildQuestionHeader(question, index, { onChange, onRemove }) {
+// Хедър — горен ред (номер + тип + премахни) + textarea за текст
+function buildQuestionHeader(question, index, qType, { onChange, onRemove }) {
     const header = document.createElement('div');
     header.className = 'question-header';
 
+    const topRow = document.createElement('div');
+    topRow.className = 'question-top-row';
+
     const numberLabel = document.createElement('span');
     numberLabel.className = 'question-number';
-    numberLabel.textContent = String(index + 1);
+    numberLabel.textContent = `Въпрос ${index + 1}`;
+
+    const typeSelect = buildTypeSelect(question.id, qType, onChange);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-sm btn-secondary';
+    removeBtn.dataset.action = 'remove-question';
+    removeBtn.textContent = 'Премахни';
+    removeBtn.addEventListener('click', () => onRemove(question.id));
+
+    topRow.appendChild(numberLabel);
+    topRow.appendChild(typeSelect);
+    topRow.appendChild(removeBtn);
 
     const textArea = document.createElement('textarea');
     textArea.className = 'form-input question-text';
     textArea.placeholder = 'Текст на въпроса...';
     textArea.value = question.text;
+    textArea.rows = 2;
     textArea.addEventListener('input', () => onChange({
         type: 'update-question-text',
         questionId: question.id,
         text: textArea.value,
     }));
 
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'btn btn-sm';
-    removeBtn.dataset.action = 'remove-question';
-    removeBtn.dataset.questionId = question.id;
-    removeBtn.textContent = 'Премахни';
-    removeBtn.addEventListener('click', () => onRemove(question.id));
-
-    header.appendChild(numberLabel);
+    header.appendChild(topRow);
     header.appendChild(textArea);
-    header.appendChild(removeBtn);
 
     return header;
 }
 
-// Ред за един отговор — radio + input + бутон за премахване
-// @param {number} totalAnswers — общ брой отговори (за disable на "Премахни" при min 2)
-function buildAnswerRow(answer, questionId, groupName, onChange, totalAnswers) {
+// Dropdown за тип въпрос
+function buildTypeSelect(questionId, currentType, onChange) {
+    const select = document.createElement('select');
+    select.className = 'question-type-select';
+    select.title = 'Тип въпрос';
+
+    QUESTION_TYPES.forEach(({ value, label }) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        opt.selected = value === currentType;
+        select.appendChild(opt);
+    });
+
+    select.addEventListener('change', () => onChange({
+        type: 'update-question-type',
+        questionId,
+        questionType: select.value,
+    }));
+
+    return select;
+}
+
+// Ред за един отговор — radio/checkbox + input + бутон за премахване
+function buildAnswerRow(answer, questionId, groupName, qType, onChange, totalAnswers) {
     const row = document.createElement('div');
     row.className = 'answer-row';
     row.dataset.answerId = answer.id;
 
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = groupName;
-    radio.value = answer.id;
-    radio.checked = answer.isCorrect;
-    radio.addEventListener('change', () => onChange({
-        type: 'set-correct-answer',
-        questionId,
-        answerId: answer.id,
-    }));
+    const inputEl = document.createElement('input');
+    if (qType === 'Multi') {
+        inputEl.type = 'checkbox';
+        inputEl.checked = answer.isCorrect;
+        inputEl.addEventListener('change', () => onChange({
+            type: 'toggle-correct-answer',
+            questionId,
+            answerId: answer.id,
+        }));
+    } else {
+        inputEl.type = 'radio';
+        inputEl.name = groupName;
+        inputEl.value = answer.id;
+        inputEl.checked = answer.isCorrect;
+        inputEl.addEventListener('change', () => onChange({
+            type: 'set-correct-answer',
+            questionId,
+            answerId: answer.id,
+        }));
+    }
+    inputEl.title = 'Верен отговор';
 
     const textInput = document.createElement('input');
     textInput.type = 'text';
@@ -117,8 +168,8 @@ function buildAnswerRow(answer, questionId, groupName, onChange, totalAnswers) {
     removeBtn.type = 'button';
     removeBtn.className = 'btn btn-sm';
     removeBtn.dataset.action = 'remove-answer';
-    removeBtn.dataset.questionId = questionId;
-    removeBtn.textContent = 'Премахни';
+    removeBtn.textContent = '×';
+    removeBtn.title = 'Премахни отговор';
     removeBtn.disabled = totalAnswers <= 2;
     removeBtn.addEventListener('click', () => onChange({
         type: 'remove-answer',
@@ -126,7 +177,7 @@ function buildAnswerRow(answer, questionId, groupName, onChange, totalAnswers) {
         answerId: answer.id,
     }));
 
-    row.appendChild(radio);
+    row.appendChild(inputEl);
     row.appendChild(textInput);
     row.appendChild(removeBtn);
 
@@ -135,48 +186,66 @@ function buildAnswerRow(answer, questionId, groupName, onChange, totalAnswers) {
 
 // ---------------------------------------------------------------------------
 // buildReadonlyQuestionCard — само за преглед (Стъпка 4)
-//
-// @param {object} question — обект с id, text, answers[]
-// @param {number} index    — 0-базиран индекс
 // ---------------------------------------------------------------------------
 export function buildReadonlyQuestionCard(question, index) {
+    const qType = question.type ?? 'Closed';
+    const typeLabels = { Closed: 'Затворен', Multi: 'Многократен', Open: 'Отворен', Code: 'Код' };
+
     const card = document.createElement('div');
-    card.className = 'question-card card readonly-card';
+    card.className = 'question-card readonly-card';
     card.dataset.questionId = question.id;
 
-    // Номер + текст на въпроса
-    const header = document.createElement('div');
-    header.className = 'question-header';
+    // Горен ред: номер + тип badge
+    const topRow = document.createElement('div');
+    topRow.className = 'question-top-row';
 
     const numberLabel = document.createElement('span');
     numberLabel.className = 'question-number';
-    numberLabel.textContent = String(index + 1);
+    numberLabel.textContent = `Въпрос ${index + 1}`;
+
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'question-type-badge';
+    typeBadge.textContent = typeLabels[qType] ?? qType;
+
+    topRow.appendChild(numberLabel);
+    topRow.appendChild(typeBadge);
+    card.appendChild(topRow);
 
     const textEl = document.createElement('p');
-    textEl.className = 'question-text';
+    textEl.className = 'question-text-preview';
     textEl.textContent = question.text;
+    card.appendChild(textEl);
 
-    header.appendChild(numberLabel);
-    header.appendChild(textEl);
-    card.appendChild(header);
+    if (qType === 'Open' || qType === 'Code') {
+        const hint = document.createElement('p');
+        hint.className = 'open-question-hint';
+        hint.textContent = qType === 'Code'
+            ? 'Код въпрос — ученикът пише код в Monaco редактора.'
+            : 'Отворен въпрос — свободен текстов отговор.';
+        card.appendChild(hint);
+    } else {
+        const answersList = document.createElement('ul');
+        answersList.className = 'answers-preview-list';
 
-    // Отговори — само текст, маркиран верен/неверен
-    const answersList = document.createElement('ul');
-    answersList.className = 'answers-list';
+        question.answers.forEach(answer => {
+            const item = document.createElement('li');
+            item.className = answer.isCorrect ? 'answer-preview answer-correct' : 'answer-preview';
+            item.dataset.correct = String(answer.isCorrect);
 
-    question.answers.forEach(answer => {
-        const item = document.createElement('li');
-        item.className = 'answer-item';
-        item.dataset.correct = String(answer.isCorrect);
+            const indicator = document.createElement('span');
+            indicator.className = 'answer-indicator';
+            indicator.textContent = answer.isCorrect ? '✓' : '○';
 
-        const textEl = document.createElement('span');
-        textEl.textContent = answer.text;
+            const textSpan = document.createElement('span');
+            textSpan.textContent = answer.text;
 
-        item.appendChild(textEl);
-        answersList.appendChild(item);
-    });
+            item.appendChild(indicator);
+            item.appendChild(textSpan);
+            answersList.appendChild(item);
+        });
 
-    card.appendChild(answersList);
+        card.appendChild(answersList);
+    }
 
     return card;
 }

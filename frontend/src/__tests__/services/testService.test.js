@@ -141,13 +141,13 @@ describe('testService — getFullTest()', () => {
 // getPublicTest — публичен endpoint, без JWT
 // ---------------------------------------------------------------------------
 describe('testService — getPublicTest()', () => {
-    it('извиква api.get с /tests/public/{shareCode}', async () => {
+    it('извиква api.get с /tests/{shareCode}', async () => {
         const shareCode = 'ABCD1234';
         api.get.mockResolvedValueOnce({ shareCode, title: 'Публичен тест' });
 
         await getPublicTest(shareCode);
 
-        expect(api.get).toHaveBeenCalledWith('/tests/public/ABCD1234', { skipAuth: true });
+        expect(api.get).toHaveBeenCalledWith('/tests/ABCD1234', { skipAuth: true });
     });
 
     it('връща публичната информация за теста', async () => {
@@ -182,7 +182,7 @@ describe('testService — getPublicTest()', () => {
 // submitAttempt — публичен endpoint, без JWT
 // ---------------------------------------------------------------------------
 describe('testService — submitAttempt()', () => {
-    it('извиква api.post с /tests/public/{shareCode}/attempts и payload', async () => {
+    it('извиква api.post с /tests/{shareCode}/attempts и payload', async () => {
         const shareCode = 'ABCD1234';
         const payload   = { participantName: 'Иван Петров', answers: [] };
         api.post.mockResolvedValueOnce({ score: 10, maxScore: 20 });
@@ -190,7 +190,7 @@ describe('testService — submitAttempt()', () => {
         await submitAttempt(shareCode, payload);
 
         expect(api.post).toHaveBeenCalledWith(
-            '/tests/public/ABCD1234/attempts',
+            '/tests/ABCD1234/attempts',
             payload,
             { skipAuth: true }
         );

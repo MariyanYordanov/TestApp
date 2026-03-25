@@ -21,7 +21,7 @@ const STATUS_LABELS = {
 export function buildTestCard(test) {
     const card = document.createElement('div');
     card.className = 'test-card';
-    card.dataset.status = test.status;
+    card.dataset.status = test.status.toLowerCase();
 
     card.appendChild(buildCardHeader(test));
     card.appendChild(buildCardMeta(test));
@@ -41,7 +41,7 @@ function buildCardHeader(test) {
     title.textContent = test.title;
 
     const badge = document.createElement('span');
-    badge.className = `badge badge-${test.status}`;
+    badge.className = `badge badge-${test.status.toLowerCase()}`;
     badge.textContent = STATUS_LABELS[test.status] ?? test.status;
 
     header.appendChild(title);

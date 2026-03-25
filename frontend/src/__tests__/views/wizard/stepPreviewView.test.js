@@ -143,7 +143,7 @@ describe('renderStepPreview — бутон "Запази като чернова
         const saveBtn = el.querySelector('[data-action="save-draft"]');
         saveBtn.click();
         await flushPromises();
-        expect(page.redirect).toHaveBeenCalledWith('/dashboard');
+        expect(page.redirect).toHaveBeenCalledWith('/tests/new-test-id');
     });
 
     it('деактивира бутона по време на запазване', async () => {

@@ -15,8 +15,9 @@ export function buildCategoryItem(category, onDelete) {
     nameSpan.textContent = category.name;
 
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn btn-danger btn-sm';
-    deleteBtn.textContent = 'Изтрий';
+    deleteBtn.className = 'btn-delete-icon';
+    deleteBtn.textContent = '×';
+    deleteBtn.title = 'Изтрий';
     deleteBtn.dataset.action = 'delete';
     deleteBtn.addEventListener('click', () => onDelete(category.id));
 

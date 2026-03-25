@@ -28,6 +28,25 @@ using (var scope = app.Services.CreateScope())
 
 // Конфигурира HTTP pipeline
 app.UseMiddleware<ExceptionMiddleware>();
+
+// Сигурносни хедъри
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Content-Security-Policy",
+        "default-src 'self'; " +
+        "script-src 'self' https://cdn.jsdelivr.net; " +
+        "style-src 'self' https://cdn.jsdelivr.net; " +
+        "font-src 'self' https://cdn.jsdelivr.net; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self'; " +
+        "frame-ancestors 'none'; " +
+        "object-src 'none';");
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    await next();
+});
+
 app.UseCors("FrontendPolicy");
 if (!app.Environment.IsEnvironment("Testing"))
     app.UseRateLimiter();

@@ -22,10 +22,11 @@ export function buildStatsRow(attempt) {
     const tdScore = document.createElement('td');
     tdScore.textContent = `${attempt.score}/${attempt.totalQuestions}`;
 
-    // Клетка: процент
+    // Клетка: процент с цветово кодиране
     const tdPercent = document.createElement('td');
     const pct = calcPercent(attempt.score, attempt.totalQuestions);
     tdPercent.textContent = `${pct}%`;
+    tdPercent.className = pct >= 70 ? 'pct-high' : pct >= 40 ? 'pct-mid' : 'pct-low';
 
     // Клетка: дата
     const tdDate = document.createElement('td');

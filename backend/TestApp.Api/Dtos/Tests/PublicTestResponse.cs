@@ -29,6 +29,9 @@ public class PublicQuestionDto
     // Текст на въпроса
     public string Text { get; set; } = string.Empty;
 
+    // Тип на въпроса: Closed | Multi | Open (нужен на ученика за рендиране)
+    public string Type { get; set; } = "Closed";
+
     // Отговори (БЕЗ информация дали са верни)
     public List<PublicAnswerDto> Answers { get; set; } = new();
 }

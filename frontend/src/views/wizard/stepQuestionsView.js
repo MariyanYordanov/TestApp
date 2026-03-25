@@ -1,11 +1,12 @@
 // Стъпка 14 — stepQuestionsView.js
 // Стъпка 3 от wizard-а: добавяне и редактиране на въпроси.
+// Поддържа три типа: Closed (радио), Multi (checkbox), Open (текст).
 // Всички state helper функции са чисти (immutable) и са export-нати за тестване.
 
 import { buildQuestionCard } from '../../templates/questionTemplate.js';
 
 // ---------------------------------------------------------------------------
-// Генерира временен уникален ID (замества се с UUID от backend при запис)
+// Генерира временен уникален ID
 // ---------------------------------------------------------------------------
 function nextId(prefix) {
     return `${prefix}-${crypto.randomUUID()}`;
@@ -15,11 +16,12 @@ function nextId(prefix) {
 // Чисти функции за управление на state (immutable)
 // ---------------------------------------------------------------------------
 
-// Добавя нов празен въпрос
+// Добавя нов празен въпрос (тип Closed по подразбиране)
 export function addQuestion(state) {
     const newQuestion = {
         id: nextId('q'),
         text: '',
+        type: 'Closed',
         answers: [
             { id: nextId('a'), text: '', isCorrect: false },
             { id: nextId('a'), text: '', isCorrect: false },
@@ -43,6 +45,39 @@ export function updateQuestionText(state, questionId, text) {
         questions: state.questions.map(q =>
             q.id === questionId ? { ...q, text } : q
         ),
+    };
+}
+
+// Обновява типа на въпрос.
+// При преминаване от Open към Closed/Multi добавя 2 празни отговора ако няма.
+// При преминаване към Closed нулира isCorrect флаговете (само 1 е верен).
+export function updateQuestionType(state, questionId, questionType) {
+    return {
+        ...state,
+        questions: state.questions.map(q => {
+            if (q.id !== questionId) return q;
+
+            let answers = q.answers;
+
+            // Ако минаваме към Open/Code — изтриваме отговорите (тип без отговори)
+            // Ако минаваме от Open/Code към Closed/Multi и нямаме отговори — добавяме 2 празни
+            const isOpenLike = questionType === 'Open' || questionType === 'Code';
+            if (isOpenLike) {
+                answers = [];
+            } else if (answers.length === 0) {
+                answers = [
+                    { id: nextId('a'), text: '', isCorrect: false },
+                    { id: nextId('a'), text: '', isCorrect: false },
+                ];
+            }
+
+            // При Closed: нулираме всички isCorrect (трябва точно 1 да се избере)
+            if (questionType === 'Closed') {
+                answers = answers.map(a => ({ ...a, isCorrect: false }));
+            }
+
+            return { ...q, type: questionType, answers };
+        }),
     };
 }
 
@@ -88,7 +123,7 @@ export function updateAnswerText(state, questionId, answerId, text) {
     };
 }
 
-// Задава верния отговор — само 1 е верен (single choice)
+// Задава верния отговор — само 1 е верен (Closed)
 export function setCorrectAnswer(state, questionId, answerId) {
     return {
         ...state,
@@ -106,11 +141,25 @@ export function setCorrectAnswer(state, questionId, answerId) {
     };
 }
 
+// Превключва верен/неверен за Multi тип
+export function toggleCorrectAnswer(state, questionId, answerId) {
+    return {
+        ...state,
+        questions: state.questions.map(q =>
+            q.id === questionId
+                ? {
+                    ...q,
+                    answers: q.answers.map(a =>
+                        a.id === answerId ? { ...a, isCorrect: !a.isCorrect } : a
+                    ),
+                }
+                : q
+        ),
+    };
+}
+
 // ---------------------------------------------------------------------------
 // validateStep3 — валидиране на Стъпка 3
-//
-// @param {object} state — wizard state с масив questions
-// @returns {{ valid: boolean, errors: string[] }}
 // ---------------------------------------------------------------------------
 export function validateStep3(state) {
     const errors = [];
@@ -122,27 +171,32 @@ export function validateStep3(state) {
 
     state.questions.forEach((q, qi) => {
         const qNum = qi + 1;
+        const qType = q.type ?? 'Closed';
 
         if (!q.text || q.text.trim().length === 0) {
             errors.push(`Въпрос ${qNum}: текстът е задължителен.`);
         }
+
+        // Open и Code въпросите нямат отговори — пропускаме проверката
+        if (qType === 'Open' || qType === 'Code') return;
 
         if (!q.answers || q.answers.length < 2) {
             errors.push(`Въпрос ${qNum}: трябват поне 2 отговора.`);
         } else if (q.answers.length > 4) {
             errors.push(`Въпрос ${qNum}: максимум 4 отговора.`);
         } else {
-            // Проверка на текстовете на отговорите
             q.answers.forEach((a, ai) => {
                 if (!a.text || a.text.trim().length === 0) {
                     errors.push(`Въпрос ${qNum}, отговор ${ai + 1}: текстът е задължителен.`);
                 }
             });
 
-            // Проверка на верните отговори — точно 1
             const correctCount = q.answers.filter(a => a.isCorrect).length;
-            if (correctCount !== 1) {
+            if (qType === 'Closed' && correctCount !== 1) {
                 errors.push(`Въпрос ${qNum}: трябва точно 1 верен отговор.`);
+            }
+            if (qType === 'Multi' && correctCount < 1) {
+                errors.push(`Въпрос ${qNum}: изберете поне 1 верен отговор.`);
             }
         }
     });
@@ -152,22 +206,15 @@ export function validateStep3(state) {
 
 // ---------------------------------------------------------------------------
 // renderStepQuestions — рендира DOM за Стъпка 3
-//
-// @param {object}   state         — wizard state
-// @param {function} onStateChange — callback(newState) при промяна
-// @param {string[]} errors        — масив с грешки (по подразбиране [])
-// @returns {HTMLElement}
 // ---------------------------------------------------------------------------
 export function renderStepQuestions(state, onStateChange, errors = []) {
     const container = document.createElement('div');
     container.className = 'step-content step-questions';
 
-    // Заглавие
     const heading = document.createElement('h2');
     heading.textContent = 'Въпроси и отговори';
     container.appendChild(heading);
 
-    // Карти за всеки въпрос
     const questionsList = document.createElement('div');
     questionsList.className = 'questions-list';
 
@@ -181,17 +228,14 @@ export function renderStepQuestions(state, onStateChange, errors = []) {
 
     container.appendChild(questionsList);
 
-    // Бутон "Добави въпрос"
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
     addBtn.className = 'btn btn-secondary';
     addBtn.dataset.action = 'add-question';
-    addBtn.textContent = 'Добави въпрос';
+    addBtn.textContent = '+ Добави въпрос';
     addBtn.addEventListener('click', () => onStateChange(addQuestion(state)));
-
     container.appendChild(addBtn);
 
-    // Грешки
     if (errors.length > 0) {
         errors.forEach(msg => {
             const errEl = document.createElement('p');
@@ -211,6 +255,8 @@ function applyPatch(state, patch) {
     switch (patch.type) {
         case 'update-question-text':
             return updateQuestionText(state, patch.questionId, patch.text);
+        case 'update-question-type':
+            return updateQuestionType(state, patch.questionId, patch.questionType);
         case 'add-answer':
             return addAnswer(state, patch.questionId);
         case 'remove-answer':
@@ -219,6 +265,8 @@ function applyPatch(state, patch) {
             return updateAnswerText(state, patch.questionId, patch.answerId, patch.text);
         case 'set-correct-answer':
             return setCorrectAnswer(state, patch.questionId, patch.answerId);
+        case 'toggle-correct-answer':
+            return toggleCorrectAnswer(state, patch.questionId, patch.answerId);
         default:
             return state;
     }

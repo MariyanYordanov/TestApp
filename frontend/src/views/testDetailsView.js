@@ -50,12 +50,14 @@ export async function showTestDetails(ctx) {
             ? await testService.getAttempts(id).catch(() => [])
             : [];
 
-        main.replaceChildren(
-            buildBackLink(),
-            buildHeader(test, id),
-            buildMetaCard(test),
-            buildSummaryCard(test, attempts),
-        );
+        const page = document.createElement('div');
+        page.className = 'test-details-page';
+        page.appendChild(buildBackLink());
+        page.appendChild(buildHeader(test, id));
+        page.appendChild(buildMetaCard(test));
+        const summaryCard = buildSummaryCard(test, attempts);
+        if (summaryCard) page.appendChild(summaryCard);
+        main.replaceChildren(page);
 
         // Закачаме event listeners след рендиране
         attachPublishHandler(main, test, ctx);

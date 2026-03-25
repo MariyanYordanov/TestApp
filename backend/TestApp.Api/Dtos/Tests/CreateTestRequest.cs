@@ -30,7 +30,12 @@ public class CreateQuestionDto
     [Required(ErrorMessage = "Текстът на въпроса е задължителен.")]
     public string Text { get; set; } = string.Empty;
 
-    // Отговори към въпроса
+    // Тип на въпроса: Closed | Multi | Open
+    [AllowedValues("Closed", "Multi", "Open", "Code",
+        ErrorMessage = "Типът трябва да бъде Closed, Multi, Open или Code.")]
+    public string Type { get; set; } = "Closed";
+
+    // Отговори към въпроса (за Open тип — празен масив)
     public List<CreateAnswerDto> Answers { get; set; } = new();
 }
 

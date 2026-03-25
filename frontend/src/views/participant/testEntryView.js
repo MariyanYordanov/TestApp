@@ -65,10 +65,15 @@ function buildTestInfo(test) {
     const questionCount = document.createElement('span');
     questionCount.textContent = `${test.questions.length} въпроса`;
 
+    const sep = document.createElement('span');
+    sep.textContent = '·';
+    sep.className = 'meta-sep';
+
     const duration = document.createElement('span');
     duration.textContent = `Времетраене: ${formatTime(test.duration)}`;
 
     meta.appendChild(questionCount);
+    meta.appendChild(sep);
     meta.appendChild(duration);
 
     info.appendChild(title);

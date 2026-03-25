@@ -44,9 +44,16 @@ public class TestService : ITestService
         if (request.Questions == null || request.Questions.Count == 0)
             throw new InvalidOperationException("Тестът трябва да съдържа поне 1 въпрос.");
 
-        // Валидира че всеки въпрос има точно 1 верен отговор
+        // Валидира отговорите само за Closed и Multi въпроси (Open и Code нямат отговори)
         foreach (var q in request.Questions)
         {
+            if (q.Type == "Open" || q.Type == "Code")
+            {
+                if (q.Answers.Any())
+                    throw new InvalidOperationException(
+                        $"Въпросът '{q.Text}' от тип {q.Type} не трябва да има отговори.");
+                continue;
+            }
             if (!q.Answers.Any(a => a.IsCorrect))
                 throw new InvalidOperationException($"Въпросът '{q.Text}' няма верен отговор.");
         }
@@ -60,6 +67,7 @@ public class TestService : ITestService
             {
                 Id = Guid.NewGuid(),
                 Text = q.Text,
+                Type = q.Type,
                 OrderIndex = qIndex,
                 Answers = q.Answers
                     .Select((a, aIndex) => new Answer
@@ -159,6 +167,7 @@ public class TestService : ITestService
                 {
                     Id = q.Id,
                     Text = q.Text,
+                    Type = q.Type,
                     Answers = q.Answers
                         .OrderBy(a => a.OrderIndex)
                         .Select(a => new PublicAnswerDto
@@ -202,6 +211,7 @@ public class TestService : ITestService
                 {
                     Id = q.Id,
                     Text = q.Text,
+                    Type = q.Type,
                     OrderIndex = q.OrderIndex,
                     Answers = q.Answers
                         .OrderBy(a => a.OrderIndex)
@@ -234,41 +244,70 @@ public class TestService : ITestService
         }
 
         // Изчислява резултата и записва AttemptAnswers
-        var attemptAnswers = new List<AttemptAnswer>();
-        int score = 0;
-
+        // Open въпросите не се оценяват автоматично — изключват се от score
         var questionResults = test.Questions
             .OrderBy(q => q.OrderIndex)
             .Select(question =>
             {
-                // Намира избрания отговор за въпроса
-                var submitted = request.Answers
-                    .FirstOrDefault(a => a.QuestionId == question.Id);
+                // Open и Code въпросите нямат отговори — маркираме като неоценени
+                if (question.Type == "Open" || question.Type == "Code")
+                {
+                    var openAnswer = request.Answers
+                        .FirstOrDefault(a => a.QuestionId == question.Id);
+                    return new
+                    {
+                        Question = question,
+                        SelectedAnswerId = (Guid?)null,
+                        OpenText = openAnswer?.OpenText,
+                        IsCorrect = false,
+                        Scorable = false
+                    };
+                }
 
-                Guid? selectedAnswerId = submitted?.SelectedAnswerId;
+                // Събира всички изпратени отговори за въпроса
+                var submittedIds = request.Answers
+                    .Where(a => a.QuestionId == question.Id && a.SelectedAnswerId.HasValue)
+                    .Select(a => a.SelectedAnswerId!.Value)
+                    .ToList();
 
-                // Проверява дали избраният отговор принадлежи на ТОЗИ въпрос
-                bool answerBelongsToQuestion = selectedAnswerId.HasValue
-                    && question.Answers.Any(a => a.Id == selectedAnswerId.Value);
+                // Валидира — запазва само отговори, принадлежащи на ТОЗИ въпрос (предотвратява инжекция)
+                var validatedIds = submittedIds
+                    .Where(id => question.Answers.Any(a => a.Id == id))
+                    .ToList();
 
-                // Нулира selectedAnswerId ако не принадлежи на въпроса (предотвратява инжекция)
-                Guid? validatedAnswerId = answerBelongsToQuestion ? selectedAnswerId : null;
-
-                // Проверява дали валидираният отговор е верен
-                bool isCorrect = validatedAnswerId.HasValue
-                    && question.Answers.Any(a => a.Id == validatedAnswerId.Value && a.IsCorrect);
+                bool isCorrect;
+                if (question.Type == "Multi")
+                {
+                    // Multi: трябва точно да съвпадат всички верни отговори (нито повече, нито по-малко)
+                    var correctIds = question.Answers
+                        .Where(a => a.IsCorrect)
+                        .Select(a => a.Id)
+                        .ToHashSet();
+                    isCorrect = validatedIds.Count > 0
+                        && new HashSet<Guid>(validatedIds).SetEquals(correctIds);
+                }
+                else
+                {
+                    // Closed: точно един отговор, трябва да е верен
+                    var singleId = validatedIds.FirstOrDefault();
+                    isCorrect = singleId != default
+                        && question.Answers.Any(a => a.Id == singleId && a.IsCorrect);
+                }
 
                 return new
                 {
                     Question = question,
-                    SelectedAnswerId = validatedAnswerId,
-                    IsCorrect = isCorrect
+                    SelectedAnswerId = validatedIds.FirstOrDefault() == default ? (Guid?)null : (Guid?)validatedIds.First(),
+                    OpenText = (string?)null,
+                    IsCorrect = isCorrect,
+                    Scorable = true
                 };
             })
             .ToList();
 
-        // Брои верните отговори
-        score = questionResults.Count(r => r.IsCorrect);
+        // Брои верните отговори само от scorable въпроси
+        int score = questionResults.Count(r => r.IsCorrect && r.Scorable);
+        int scorableTotal = questionResults.Count(r => r.Scorable);
 
         // Създава AttemptAnswer записи
         var attemptAnswersList = questionResults
@@ -277,6 +316,7 @@ public class TestService : ITestService
                 Id = Guid.NewGuid(),
                 QuestionId = r.Question.Id,
                 SelectedAnswerId = r.SelectedAnswerId,
+                OpenText = r.OpenText,
                 IsCorrect = r.IsCorrect
             })
             .ToList();
@@ -287,7 +327,7 @@ public class TestService : ITestService
             Id = Guid.NewGuid(),
             ParticipantName = request.ParticipantName,
             Score = score,
-            TotalQuestions = test.Questions.Count,
+            TotalQuestions = scorableTotal,
             TestId = test.Id,
             CreatedAt = DateTime.UtcNow,
             AttemptAnswers = attemptAnswersList
@@ -296,15 +336,15 @@ public class TestService : ITestService
         _db.Attempts.Add(attempt);
         await _db.SaveChangesAsync();
 
-        // Изчислява процента
-        double percent = test.Questions.Count > 0
-            ? Math.Round((double)score / test.Questions.Count * 100, 2)
+        // Изчислява процента спрямо оценяемите въпроси
+        double percent = scorableTotal > 0
+            ? Math.Round((double)score / scorableTotal * 100, 2)
             : 0;
 
         return new AttemptResultResponse
         {
             Score = score,
-            TotalQuestions = test.Questions.Count,
+            TotalQuestions = scorableTotal,
             Percent = percent,
             Results = questionResults
                 .Select(r => new AttemptQuestionResult

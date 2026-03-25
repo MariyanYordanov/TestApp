@@ -1,8 +1,10 @@
 // Стъпка 42 — createTestView.js
-// Главен wizard controller за създаване на тест.
+// Главен wizard controller за създаване/редактиране на тест.
 // Управлява 4-стъпков wizard с immutable state.
 // Зарежда категории от API при инициализация.
+// При edit режим (/tests/:id/edit) зарежда съществуващия тест.
 
+import page from '../../lib/page.min.js';
 import { renderStepTitle, validateStep1 } from './wizard/stepTitleView.js';
 import { renderStepCategories, validateStep2 } from './wizard/stepCategoriesView.js';
 import { renderStepQuestions, validateStep3 } from './wizard/stepQuestionsView.js';
@@ -25,9 +27,34 @@ function createInitialState() {
     };
 }
 
+// Маппинг от API отговор към wizard state
+function mapTestToState(test) {
+    return {
+        currentStep: 0,
+        title: test.title ?? '',
+        description: test.description ?? '',
+        categoryIds: Array.isArray(test.categories)
+            ? test.categories.map(c => c.id)
+            : (test.categoryIds ?? []),
+        questions: Array.isArray(test.questions)
+            ? test.questions.map(q => ({
+                id: q.id,
+                text: q.text ?? '',
+                type: q.type ?? 'Closed',
+                answers: Array.isArray(q.answers)
+                    ? q.answers.map(a => ({
+                        id: a.id,
+                        text: a.text ?? '',
+                        isCorrect: a.isCorrect ?? false,
+                    }))
+                    : [],
+            }))
+            : [],
+    };
+}
+
 // ---------------------------------------------------------------------------
 // saveFocus / restoreFocus — запазва и възстановява фокуса след re-render.
-// Поддържа: елементи с id, textarea на въпрос, input на отговор.
 // ---------------------------------------------------------------------------
 function saveFocus() {
     const el = document.activeElement;
@@ -70,42 +97,51 @@ function restoreFocus(focus) {
 
 // ---------------------------------------------------------------------------
 // showCreateTest — entry point от routes.js
-//
-// @param {object} ctx — page.js context обект
 // ---------------------------------------------------------------------------
 export async function showCreateTest(ctx) {
-    // Ignore ctx за момента — ще се използва при edit режим
-    void ctx;
+    const editId = ctx?.params?.id ?? null;
 
     const main = document.getElementById('main');
     main.className = '';
 
-    // Зареждаме категориите от API при инициализация на wizard-а
+    // Зареждаме категориите и (при edit) съществуващия тест
     let categories = [];
-    try {
-        categories = await categoryService.getCategories() ?? [];
-    } catch {
-        // При грешка продължаваме с празен масив — потребителят ще види съобщение в Стъпка 2
-        categories = [];
-        showToast('Категориите не могат да бъдат заредени.', 'error');
-    }
+    let existingTest = null;
 
-    let state = createInitialState();
+    const loadCategories = categoryService.getCategories()
+        .then(r => { categories = r ?? []; })
+        .catch(() => {
+            categories = [];
+            showToast('Категориите не могат да бъдат заредени.', 'error');
+        });
 
-    // Рендира wizard-а с текущия state, запазвайки фокуса
+    const loadTest = editId
+        ? testService.getFullTest(editId)
+            .then(t => { existingTest = t; })
+            .catch(() => {
+                showToast('Тестът не може да бъде зареден.', 'error');
+            })
+        : Promise.resolve();
+
+    await Promise.all([loadCategories, loadTest]);
+
+    let state = existingTest
+        ? mapTestToState(existingTest)
+        : createInitialState();
+
     function render(errors = []) {
         const focus = saveFocus();
-        main.replaceChildren(buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories));
+        main.replaceChildren(
+            buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories, editId)
+        );
         restoreFocus(focus);
     }
 
-    // Callback при промяна на state от стъпките
     function onStateChange(newState) {
         state = newState;
         render();
     }
 
-    // Callback "Напред" — валидира и преминава към следващата стъпка
     function onNext() {
         const { valid, errors } = validateCurrentStep(state);
         if (!valid) {
@@ -116,7 +152,6 @@ export async function showCreateTest(ctx) {
         render();
     }
 
-    // Callback "Назад" — връща се към предишната стъпка
     function onBack() {
         if (state.currentStep > 0) {
             state = { ...state, currentStep: state.currentStep - 1 };
@@ -142,19 +177,16 @@ function validateCurrentStep(state) {
 // ---------------------------------------------------------------------------
 // buildWizardLayout — строи целия wizard layout
 // ---------------------------------------------------------------------------
-function buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories) {
+function buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories, editId) {
     const wrapper = document.createElement('div');
     wrapper.className = 'wizard-wrapper';
 
-    // Stepper индикатор
     wrapper.appendChild(buildStepper(state.currentStep));
 
-    // Съдържание на текущата стъпка
-    const stepContent = buildStepContent(state, errors, onStateChange, categories);
+    const stepContent = buildStepContent(state, errors, onStateChange, categories, editId);
     wrapper.appendChild(stepContent);
 
-    // Навигационни бутони
-    wrapper.appendChild(buildNavButtons(state, onNext, onBack));
+    wrapper.appendChild(buildNavButtons(state, onNext, onBack, editId));
 
     return wrapper;
 }
@@ -162,9 +194,11 @@ function buildWizardLayout(state, errors, onStateChange, onNext, onBack, categor
 // ---------------------------------------------------------------------------
 // buildStepContent — рендира съдържанието на текущата стъпка
 // ---------------------------------------------------------------------------
-function buildStepContent(state, errors, onStateChange, categories) {
-    // onSave callback: изпраща теста към API
+function buildStepContent(state, errors, onStateChange, categories, editId) {
     async function onSave(currentState) {
+        if (editId) {
+            return testService.updateTest(editId, currentState);
+        }
         return testService.createTest(currentState);
     }
 
@@ -176,12 +210,12 @@ function buildStepContent(state, errors, onStateChange, categories) {
         case 2:
             return renderStepQuestions(state, onStateChange, errors);
         case 3:
-            // Стъпка 4 управлява собствения си "Назад" и запазването
             return renderStepPreview(
                 state,
                 () => { onStateChange({ ...state, currentStep: 2 }); },
                 categories,
                 onSave,
+                editId,
             );
         default:
             return document.createElement('div');
@@ -189,9 +223,9 @@ function buildStepContent(state, errors, onStateChange, categories) {
 }
 
 // ---------------------------------------------------------------------------
-// buildNavButtons — бутони "Назад" и "Напред" (без последната стъпка)
+// buildNavButtons — бутони "Назад", "Напред" и "Откажи"
 // ---------------------------------------------------------------------------
-function buildNavButtons(state, onNext, onBack) {
+function buildNavButtons(state, onNext, onBack, editId) {
     // На последната стъпка бутоните се управляват от stepPreviewView
     if (state.currentStep === 3) {
         return document.createElement('div');
@@ -200,7 +234,21 @@ function buildNavButtons(state, onNext, onBack) {
     const bar = document.createElement('div');
     bar.className = 'wizard-nav';
 
-    // "Назад" — само от Стъпка 2 нататък
+    // "Откажи" — вляво, отива към dashboard или детайлите на теста
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.dataset.action = 'cancel';
+    cancelBtn.textContent = 'Откажи';
+    cancelBtn.addEventListener('click', () => {
+        page.redirect(editId ? `/tests/${editId}` : '/dashboard');
+    });
+    bar.appendChild(cancelBtn);
+
+    // Дясна група: Назад + Напред
+    const rightGroup = document.createElement('div');
+    rightGroup.className = 'wizard-nav-right';
+
     if (state.currentStep > 0) {
         const backBtn = document.createElement('button');
         backBtn.type = 'button';
@@ -208,17 +256,18 @@ function buildNavButtons(state, onNext, onBack) {
         backBtn.dataset.action = 'back';
         backBtn.textContent = 'Назад';
         backBtn.addEventListener('click', onBack);
-        bar.appendChild(backBtn);
+        rightGroup.appendChild(backBtn);
     }
 
-    // "Напред"
     const nextBtn = document.createElement('button');
     nextBtn.type = 'button';
     nextBtn.className = 'btn btn-primary';
     nextBtn.dataset.action = 'next';
     nextBtn.textContent = 'Напред';
     nextBtn.addEventListener('click', onNext);
-    bar.appendChild(nextBtn);
+    rightGroup.appendChild(nextBtn);
+
+    bar.appendChild(rightGroup);
 
     return bar;
 }

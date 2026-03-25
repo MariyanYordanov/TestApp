@@ -51,6 +51,11 @@ export async function publishTest(testId) {
     return api.put(`/tests/${testId}/publish`);
 }
 
+// Обновява тест по ID — използва се при edit режим
+export async function updateTest(testId, testData) {
+    return api.put(`/tests/${testId}`, testData);
+}
+
 // Изтрива тест по ID — връща null при успех
 export async function deleteTest(testId) {
     return api.delete(`/tests/${testId}`);

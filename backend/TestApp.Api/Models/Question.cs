@@ -10,6 +10,9 @@ public class Question
     // Текст на въпроса
     public string Text { get; set; } = string.Empty;
 
+    // Тип на въпроса: Closed | Multi | Open
+    public string Type { get; set; } = "Closed";
+
     // Наредба на въпроса в теста
     public int OrderIndex { get; set; }
 
