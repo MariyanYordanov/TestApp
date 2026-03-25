@@ -55,6 +55,7 @@ function buildForm() {
     const form = document.createElement('form');
     form.id = 'login-form';
     form.noValidate = true;
+    form.autocomplete = 'off';
 
     form.appendChild(buildField('email',    'Email',  'email',    'teacher@example.com'));
     form.appendChild(buildField('password', 'Парола', 'password', '••••••••'));
@@ -93,10 +94,53 @@ function buildField(id, label, type, placeholder) {
     input.className = 'form-input';
     input.placeholder = placeholder;
     input.required = true;
+    input.autocomplete = type === 'password' ? 'new-password' : 'off';
 
     group.appendChild(lbl);
-    group.appendChild(input);
+
+    if (type === 'password') {
+        // Обвиваме input + бутон за показване в wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'input-password-wrapper';
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'btn-password-toggle';
+        toggleBtn.setAttribute('aria-label', 'Покажи/скрий паролата');
+        toggleBtn.innerHTML = eyeIcon(false);
+        toggleBtn.addEventListener('click', () => {
+            const visible = input.type === 'text';
+            input.type = visible ? 'password' : 'text';
+            toggleBtn.innerHTML = eyeIcon(visible);
+        });
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(toggleBtn);
+        group.appendChild(wrapper);
+    } else {
+        group.appendChild(input);
+    }
+
     return group;
+}
+
+// SVG иконки за показване/скриване на парола
+function eyeIcon(isVisible) {
+    if (isVisible) {
+        // Затворено око (паролата е видима — клик ще я скрие)
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>`;
+    }
+    // Отворено око (паролата е скрита — клик ще я покаже)
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </svg>`;
 }
 
 // Обработва изпращането на формата
