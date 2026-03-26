@@ -426,8 +426,23 @@ public class TestService : ITestService
                     $"Категории не са намерени: {string.Join(", ", missingIds)}");
         }
 
-        // Стъпка 1: Изтрива старите въпроси, отговори и категории
-        // (изпращаме deletes отделно за да избегнем PK конфликт при повторни категории)
+        // Стъпка 1: Нулира FK референциите в AttemptAnswers към старите отговори,
+        // защото FK е NO ACTION и директното изтриване на Answers ще фейлне.
+        var oldAnswerIds = test.Questions
+            .SelectMany(q => q.Answers)
+            .Select(a => a.Id)
+            .ToList();
+
+        if (oldAnswerIds.Count > 0)
+        {
+            await _db.AttemptAnswers
+                .Where(aa => aa.SelectedAnswerId.HasValue
+                             && oldAnswerIds.Contains(aa.SelectedAnswerId.Value))
+                .ExecuteUpdateAsync(s =>
+                    s.SetProperty(aa => aa.SelectedAnswerId, (Guid?)null));
+        }
+
+        // Стъпка 2: Изтрива старите въпроси, отговори и категории
         _db.Questions.RemoveRange(test.Questions);
         _db.Set<TestCategory>().RemoveRange(test.TestCategories);
         await _db.SaveChangesAsync();
