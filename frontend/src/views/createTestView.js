@@ -77,7 +77,13 @@ function saveFocus() {
     }
 
     if (questionCard && el.tagName === 'TEXTAREA') {
-        focus.selector = `[data-question-id="${questionCard.dataset.questionId}"] textarea`;
+        if (el.dataset.sampleAnswerFor) {
+            // Примерен отговор textarea — има уникален data атрибут
+            focus.selector = `[data-sample-answer-for="${el.dataset.sampleAnswerFor}"]`;
+        } else {
+            // Текст на въпроса textarea
+            focus.selector = `[data-question-id="${questionCard.dataset.questionId}"] textarea:not([data-sample-answer-for])`;
+        }
         return focus;
     }
 
