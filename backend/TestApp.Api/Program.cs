@@ -1,5 +1,6 @@
 // Стъпка 32 — Program.cs
 // Точка на влизане в приложението
+using Microsoft.EntityFrameworkCore;
 using TestApp.Api.Data;
 using TestApp.Api.Extensions;
 using TestApp.Api.Middleware;
@@ -19,7 +20,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    await db.Database.MigrateAsync();
     if (app.Environment.IsDevelopment())
     {
         await SeedData.SeedAsync(db);
