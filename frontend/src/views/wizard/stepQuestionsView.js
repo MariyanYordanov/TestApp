@@ -76,7 +76,10 @@ export function updateQuestionType(state, questionId, questionType) {
                 answers = answers.map(a => ({ ...a, isCorrect: false }));
             }
 
-            return { ...q, type: questionType, answers };
+            // При преминаване от Open/Code към Closed/Multi — изчистваме sampleAnswer
+            const sampleAnswer = isOpenLike ? q.sampleAnswer : undefined;
+
+            return { ...q, type: questionType, answers, sampleAnswer };
         }),
     };
 }
@@ -119,6 +122,16 @@ export function updateAnswerText(state, questionId, answerId, text) {
                     ),
                 }
                 : q
+        ),
+    };
+}
+
+// Обновява примерния отговор на Open/Code въпрос
+export function updateSampleAnswer(state, questionId, sampleAnswer) {
+    return {
+        ...state,
+        questions: state.questions.map(q =>
+            q.id === questionId ? { ...q, sampleAnswer } : q
         ),
     };
 }
@@ -177,8 +190,14 @@ export function validateStep3(state) {
             errors.push(`Въпрос ${qNum}: текстът е задължителен.`);
         }
 
-        // Open и Code въпросите нямат отговори — пропускаме проверката
-        if (qType === 'Open' || qType === 'Code') return;
+        // Open и Code въпросите нямат отговори — проверяваме само sampleAnswer и пропускаме проверката на отговорите
+        if (qType === 'Open' || qType === 'Code') {
+            const maxLen = qType === 'Code' ? 50000 : 10000;
+            if (q.sampleAnswer && q.sampleAnswer.length > maxLen) {
+                errors.push(`Въпрос ${qNum}: примерният отговор не може да надвишава ${maxLen} символа.`);
+            }
+            return;
+        }
 
         if (!q.answers || q.answers.length < 2) {
             errors.push(`Въпрос ${qNum}: трябват поне 2 отговора.`);
@@ -267,6 +286,8 @@ function applyPatch(state, patch) {
             return setCorrectAnswer(state, patch.questionId, patch.answerId);
         case 'toggle-correct-answer':
             return toggleCorrectAnswer(state, patch.questionId, patch.answerId);
+        case 'update-sample-answer':
+            return updateSampleAnswer(state, patch.questionId, patch.sampleAnswer);
         default:
             return state;
     }

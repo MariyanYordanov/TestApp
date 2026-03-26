@@ -224,3 +224,102 @@ describe('buildReadonlyQuestionCard — структура', () => {
         expect(wrongEl.length).toBe(1);
     });
 });
+
+// ---------------------------------------------------------------------------
+// buildQuestionCard — sampleAnswer за Open и Code въпроси
+// ---------------------------------------------------------------------------
+
+describe('buildQuestionCard — sampleAnswer поле', () => {
+    it('Open тип рендира textarea за sampleAnswer', () => {
+        const q = makeQuestion({ type: 'Open', answers: [] });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const ta = card.querySelector('[data-sample-answer-for="q-1"]');
+        expect(ta).not.toBeNull();
+    });
+
+    it('Code тип рендира textarea за sampleAnswer', () => {
+        const q = makeQuestion({ type: 'Code', answers: [] });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const ta = card.querySelector('[data-sample-answer-for="q-1"]');
+        expect(ta).not.toBeNull();
+    });
+
+    it('Open textarea има maxLength 10000', () => {
+        const q = makeQuestion({ type: 'Open', answers: [] });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const ta = card.querySelector('[data-sample-answer-for="q-1"]');
+        expect(ta.maxLength).toBe(10000);
+    });
+
+    it('Code textarea има maxLength 50000', () => {
+        const q = makeQuestion({ type: 'Code', answers: [] });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const ta = card.querySelector('[data-sample-answer-for="q-1"]');
+        expect(ta.maxLength).toBe(50000);
+    });
+
+    it('textarea стойността отразява question.sampleAnswer', () => {
+        const q = makeQuestion({ type: 'Open', answers: [], sampleAnswer: 'Примерен отговор' });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const ta = card.querySelector('[data-sample-answer-for="q-1"]');
+        expect(ta.value).toBe('Примерен отговор');
+    });
+
+    it('Closed тип НЕ рендира textarea за sampleAnswer', () => {
+        const q = makeQuestion({ type: 'Closed' });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const ta = card.querySelector('[data-sample-answer-for="q-1"]');
+        expect(ta).toBeNull();
+    });
+
+    it('onChange се извиква с update-sample-answer patch при input в textarea', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion({ type: 'Open', answers: [], sampleAnswer: '' });
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const ta = card.querySelector('[data-sample-answer-for="q-1"]');
+        ta.value = 'Нов примерен отговор';
+        ta.dispatchEvent(new Event('input'));
+        expect(onChange).toHaveBeenCalledWith({
+            type: 'update-sample-answer',
+            questionId: 'q-1',
+            sampleAnswer: 'Нов примерен отговор',
+        });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildReadonlyQuestionCard — sampleAnswer за Open и Code въпроси
+// ---------------------------------------------------------------------------
+
+describe('buildReadonlyQuestionCard — sampleAnswer', () => {
+    it('показва sampleAnswer секция когато sampleAnswer е зададен (Open)', () => {
+        const q = makeQuestion({ type: 'Open', answers: [], sampleAnswer: 'Примерен отговор' });
+        const card = buildReadonlyQuestionCard(q, 0);
+        expect(card.textContent).toContain('Примерен отговор');
+    });
+
+    it('НЕ показва sampleAnswer секция когато sampleAnswer е празен', () => {
+        const q = makeQuestion({ type: 'Open', answers: [], sampleAnswer: '' });
+        const card = buildReadonlyQuestionCard(q, 0);
+        const section = card.querySelector('[data-sample-answer-preview]');
+        expect(section).toBeNull();
+    });
+
+    it('използва <pre> за Code тип', () => {
+        const q = makeQuestion({ type: 'Code', answers: [], sampleAnswer: 'print("hello")' });
+        const card = buildReadonlyQuestionCard(q, 0);
+        const pre = card.querySelector('pre');
+        expect(pre).not.toBeNull();
+        expect(pre.textContent).toBe('print("hello")');
+    });
+
+    it('използва <p> за Open тип', () => {
+        const q = makeQuestion({ type: 'Open', answers: [], sampleAnswer: 'Примерен отговор' });
+        const card = buildReadonlyQuestionCard(q, 0);
+        const section = card.querySelector('[data-sample-answer-preview]');
+        expect(section).not.toBeNull();
+        const p = section.querySelector('p');
+        expect(p).not.toBeNull();
+        expect(p.textContent).toBe('Примерен отговор');
+    });
+});

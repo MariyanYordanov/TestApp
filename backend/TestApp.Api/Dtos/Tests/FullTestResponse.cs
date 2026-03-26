@@ -44,6 +44,9 @@ public class FullQuestionDto
     // Наредба
     public int OrderIndex { get; set; }
 
+    // Примерен отговор (само за Open и Code въпроси)
+    public string? SampleAnswer { get; set; }
+
     // Отговори с информация дали са верни
     public List<FullAnswerDto> Answers { get; set; } = new();
 }

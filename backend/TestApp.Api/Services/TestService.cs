@@ -52,6 +52,13 @@ public class TestService : ITestService
                 if (q.Answers.Any())
                     throw new InvalidOperationException(
                         $"Въпросът '{q.Text}' от тип {q.Type} не трябва да има отговори.");
+
+                // Проверява дължината на примерния отговор спрямо типа
+                int maxSampleLen = q.Type == "Code" ? 50000 : 10000;
+                if (q.SampleAnswer?.Length > maxSampleLen)
+                    throw new InvalidOperationException(
+                        $"Примерният отговор на въпрос '{q.Text}' надвишава {maxSampleLen} символа.");
+
                 continue;
             }
             if (!q.Answers.Any(a => a.IsCorrect))
@@ -69,6 +76,7 @@ public class TestService : ITestService
                 Text = q.Text,
                 Type = q.Type,
                 OrderIndex = qIndex,
+                SampleAnswer = (q.Type == "Open" || q.Type == "Code") ? q.SampleAnswer : null,
                 Answers = q.Answers
                     .Select((a, aIndex) => new Answer
                     {
@@ -213,6 +221,7 @@ public class TestService : ITestService
                     Text = q.Text,
                     Type = q.Type,
                     OrderIndex = q.OrderIndex,
+                    SampleAnswer = q.SampleAnswer,
                     Answers = q.Answers
                         .OrderBy(a => a.OrderIndex)
                         .Select(a => new FullAnswerDto

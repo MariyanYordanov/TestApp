@@ -413,6 +413,175 @@ describe('renderStepQuestions — показване на грешки', () => {
 });
 
 // ---------------------------------------------------------------------------
+// updateSampleAnswer
+// ---------------------------------------------------------------------------
+
+const { updateSampleAnswer } = await import('../../../views/wizard/stepQuestionsView.js');
+
+describe('updateSampleAnswer', () => {
+    it('задава sampleAnswer на целевия въпрос', () => {
+        const state = {
+            questions: [
+                { id: 'q-1', text: 'Въпрос 1', type: 'Open', answers: [] },
+                { id: 'q-2', text: 'Въпрос 2', type: 'Code', answers: [] },
+            ],
+        };
+        const newState = updateSampleAnswer(state, 'q-1', 'Примерен отговор');
+        expect(newState.questions[0].sampleAnswer).toBe('Примерен отговор');
+    });
+
+    it('не засяга другите въпроси', () => {
+        const state = {
+            questions: [
+                { id: 'q-1', text: 'Въпрос 1', type: 'Open', answers: [], sampleAnswer: '' },
+                { id: 'q-2', text: 'Въпрос 2', type: 'Code', answers: [], sampleAnswer: '' },
+            ],
+        };
+        const newState = updateSampleAnswer(state, 'q-1', 'Нов примерен отговор');
+        expect(newState.questions[1].sampleAnswer).toBe('');
+    });
+
+    it('не мутира оригиналния state (immutable)', () => {
+        const state = {
+            questions: [
+                { id: 'q-1', text: 'Въпрос 1', type: 'Open', answers: [], sampleAnswer: 'стар' },
+            ],
+        };
+        updateSampleAnswer(state, 'q-1', 'нов');
+        expect(state.questions[0].sampleAnswer).toBe('стар');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// updateQuestionType — допълнения за sampleAnswer
+// ---------------------------------------------------------------------------
+
+const { updateQuestionType } = await import('../../../views/wizard/stepQuestionsView.js');
+
+describe('updateQuestionType — sampleAnswer поведение', () => {
+    it('смяна Open→Closed изчиства sampleAnswer', () => {
+        const state = {
+            questions: [
+                { id: 'q-1', text: 'Въпрос', type: 'Open', answers: [], sampleAnswer: 'примерен' },
+            ],
+        };
+        const newState = updateQuestionType(state, 'q-1', 'Closed');
+        expect(newState.questions[0].sampleAnswer).toBeUndefined();
+    });
+
+    it('смяна Code→Multi изчиства sampleAnswer', () => {
+        const state = {
+            questions: [
+                { id: 'q-1', text: 'Въпрос', type: 'Code', answers: [], sampleAnswer: 'print("hi")' },
+            ],
+        };
+        const newState = updateQuestionType(state, 'q-1', 'Multi');
+        expect(newState.questions[0].sampleAnswer).toBeUndefined();
+    });
+
+    it('смяна Open→Code запазва sampleAnswer', () => {
+        const state = {
+            questions: [
+                { id: 'q-1', text: 'Въпрос', type: 'Open', answers: [], sampleAnswer: 'примерен' },
+            ],
+        };
+        const newState = updateQuestionType(state, 'q-1', 'Code');
+        expect(newState.questions[0].sampleAnswer).toBe('примерен');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// validateStep3 — допълнения за sampleAnswer дължина
+// ---------------------------------------------------------------------------
+
+describe('validateStep3 — sampleAnswer дължина', () => {
+    it('valid:true при Open въпрос с sampleAnswer в рамките на 10000 символа', () => {
+        const state = {
+            questions: [{
+                id: 'q-1',
+                text: 'Обясни',
+                type: 'Open',
+                answers: [],
+                sampleAnswer: 'кратък отговор',
+            }],
+        };
+        const result = validateStep3(state);
+        expect(result.valid).toBe(true);
+    });
+
+    it('valid:true при Open въпрос без sampleAnswer', () => {
+        const state = {
+            questions: [{
+                id: 'q-1',
+                text: 'Обясни',
+                type: 'Open',
+                answers: [],
+            }],
+        };
+        const result = validateStep3(state);
+        expect(result.valid).toBe(true);
+    });
+
+    it('грешка при Open sampleAnswer > 10000 символа', () => {
+        const state = {
+            questions: [{
+                id: 'q-1',
+                text: 'Обясни',
+                type: 'Open',
+                answers: [],
+                sampleAnswer: 'x'.repeat(10001),
+            }],
+        };
+        const result = validateStep3(state);
+        expect(result.valid).toBe(false);
+        expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it('грешка при Code sampleAnswer > 50000 символа', () => {
+        const state = {
+            questions: [{
+                id: 'q-1',
+                text: 'Напиши код',
+                type: 'Code',
+                answers: [],
+                sampleAnswer: 'x'.repeat(50001),
+            }],
+        };
+        const result = validateStep3(state);
+        expect(result.valid).toBe(false);
+        expect(result.errors.length).toBeGreaterThan(0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// applyPatch — 'update-sample-answer'
+// ---------------------------------------------------------------------------
+
+describe('applyPatch — update-sample-answer', () => {
+    it("patch 'update-sample-answer' обновява sampleAnswer на въпроса", () => {
+        const onStateChange = vi.fn();
+        const state = {
+            questions: [{
+                id: 'q-1',
+                text: 'Въпрос',
+                type: 'Open',
+                answers: [],
+                sampleAnswer: '',
+            }],
+        };
+        const el = renderStepQuestions(state, onStateChange);
+        // Намираме textarea за sampleAnswer (след hint-а) за Open въпрос
+        const sampleAnswerTA = el.querySelector('[data-sample-answer-for="q-1"]');
+        expect(sampleAnswerTA).not.toBeNull();
+        sampleAnswerTA.value = 'Примерен отговор';
+        sampleAnswerTA.dispatchEvent(new Event('input'));
+        expect(onStateChange).toHaveBeenCalled();
+        const newState = onStateChange.mock.calls[0][0];
+        expect(newState.questions[0].sampleAnswer).toBe('Примерен отговор');
+    });
+});
+
+// ---------------------------------------------------------------------------
 // renderStepQuestions — onChange/onRemove callbacks от buildQuestionCard
 // ---------------------------------------------------------------------------
 

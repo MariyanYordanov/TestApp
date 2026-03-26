@@ -80,5 +80,10 @@ public class AppDbContext : DbContext
             .WithOne(a => a.Question)
             .HasForeignKey(a => a.QuestionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Примерният отговор е ограничен до 50000 символа (за Code тип)
+        builder.Entity<Question>()
+            .Property(q => q.SampleAnswer)
+            .HasMaxLength(50000);
     }
 }

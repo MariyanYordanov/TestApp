@@ -35,6 +35,10 @@ public class CreateQuestionDto
         ErrorMessage = "Типът трябва да бъде Closed, Multi, Open или Code.")]
     public string Type { get; set; } = "Closed";
 
+    // Примерен отговор (само за Open и Code въпроси, незадължителен, макс 50000 символа)
+    [MaxLength(50000)]
+    public string? SampleAnswer { get; set; }
+
     // Отговори към въпроса (за Open тип — празен масив)
     public List<CreateAnswerDto> Answers { get; set; } = new();
 }

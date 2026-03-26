@@ -1,5 +1,6 @@
 // Стъпка 23 — Question.cs
 // Entity: въпрос в тест
+using System.ComponentModel.DataAnnotations;
 namespace TestApp.Api.Models;
 
 public class Question
@@ -21,6 +22,10 @@ public class Question
 
     // Навигационно свойство към теста
     public Test Test { get; set; } = null!;
+
+    // Примерен отговор (само за Open и Code въпроси, незадължителен)
+    [MaxLength(50000)]
+    public string? SampleAnswer { get; set; }
 
     // Отговори към въпроса
     public List<Answer> Answers { get; set; } = new();

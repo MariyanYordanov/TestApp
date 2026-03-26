@@ -54,6 +54,27 @@ export function buildQuestionCard(question, index, { onChange, onRemove }) {
             ? 'Ученикът ще напише код в Monaco редактора.'
             : 'Ученикът ще напише свободен текстов отговор.';
         card.appendChild(hint);
+
+        // Поле за примерен отговор (незадължително)
+        const sampleLabel = document.createElement('label');
+        sampleLabel.className = 'form-label sample-answer-label';
+        sampleLabel.textContent = 'Примерен отговор (незадължително)';
+
+        const sampleTA = document.createElement('textarea');
+        sampleTA.className = 'form-input sample-answer-input';
+        sampleTA.dataset.sampleAnswerFor = question.id;
+        sampleTA.placeholder = 'Въведете примерен отговор...';
+        sampleTA.value = question.sampleAnswer ?? '';
+        sampleTA.rows = 3;
+        sampleTA.maxLength = qType === 'Code' ? 50000 : 10000;
+        sampleTA.addEventListener('input', () => onChange({
+            type: 'update-sample-answer',
+            questionId: question.id,
+            sampleAnswer: sampleTA.value,
+        }));
+
+        card.appendChild(sampleLabel);
+        card.appendChild(sampleTA);
     }
 
     return card;
@@ -223,6 +244,29 @@ export function buildReadonlyQuestionCard(question, index) {
             ? 'Код въпрос — ученикът пише код в Monaco редактора.'
             : 'Отворен въпрос — свободен текстов отговор.';
         card.appendChild(hint);
+
+        // Показва примерния отговор само ако е зададен
+        if (question.sampleAnswer) {
+            const section = document.createElement('div');
+            section.className = 'sample-answer-preview';
+            section.dataset.sampleAnswerPreview = '';
+
+            const sectionLabel = document.createElement('strong');
+            sectionLabel.textContent = 'Примерен отговор:';
+            section.appendChild(sectionLabel);
+
+            if (qType === 'Code') {
+                const pre = document.createElement('pre');
+                pre.textContent = question.sampleAnswer;
+                section.appendChild(pre);
+            } else {
+                const p = document.createElement('p');
+                p.textContent = question.sampleAnswer;
+                section.appendChild(p);
+            }
+
+            card.appendChild(section);
+        }
     } else {
         const answersList = document.createElement('ul');
         answersList.className = 'answers-preview-list';
