@@ -170,6 +170,9 @@ namespace TestApp.Api.Migrations
                     b.Property<int>("OrderIndex")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("SampleAnswer")
                         .HasMaxLength(50000)
                         .HasColumnType("TEXT");

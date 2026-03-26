@@ -41,6 +41,7 @@ function mapTestToState(test) {
                 id: q.id,
                 text: q.text ?? '',
                 type: q.type ?? 'Closed',
+                points: q.points ?? 1,
                 sampleAnswer: q.sampleAnswer || undefined,
                 answers: Array.isArray(q.answers)
                     ? q.answers.map(a => ({

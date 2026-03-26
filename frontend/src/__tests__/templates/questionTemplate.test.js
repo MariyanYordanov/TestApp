@@ -288,6 +288,84 @@ describe('buildQuestionCard — sampleAnswer поле', () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildQuestionCard — points input
+// ---------------------------------------------------------------------------
+
+describe('buildQuestionCard — points input', () => {
+    it('рендира number input за points', () => {
+        const q = makeQuestion({ points: 3 });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const pointsInput = card.querySelector('[data-points-for="q-1"]');
+        expect(pointsInput).not.toBeNull();
+    });
+
+    it('points input показва текущата стойност', () => {
+        const q = makeQuestion({ points: 5 });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const pointsInput = card.querySelector('[data-points-for="q-1"]');
+        expect(parseInt(pointsInput.value)).toBe(5);
+    });
+
+    it('points input е от тип number', () => {
+        const q = makeQuestion({ points: 1 });
+        const card = buildQuestionCard(q, 0, { onChange: vi.fn(), onRemove: vi.fn() });
+        const pointsInput = card.querySelector('[data-points-for="q-1"]');
+        expect(pointsInput.type).toBe('number');
+    });
+
+    it('onChange се извиква при промяна на points с patch update-question-points', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion({ points: 1 });
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const pointsInput = card.querySelector('[data-points-for="q-1"]');
+        pointsInput.value = '4';
+        pointsInput.dispatchEvent(new Event('input'));
+        expect(onChange).toHaveBeenCalledWith({
+            type: 'update-question-points',
+            questionId: 'q-1',
+            points: 4,
+        });
+    });
+
+    it('points input не извиква onChange при невалидна стойност (NaN)', () => {
+        const onChange = vi.fn();
+        const q = makeQuestion({ points: 1 });
+        const card = buildQuestionCard(q, 0, { onChange, onRemove: vi.fn() });
+        const pointsInput = card.querySelector('[data-points-for="q-1"]');
+        pointsInput.value = 'abc';
+        pointsInput.dispatchEvent(new Event('input'));
+        expect(onChange).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildReadonlyQuestionCard — points badge
+// ---------------------------------------------------------------------------
+
+describe('buildReadonlyQuestionCard — points badge', () => {
+    it('показва points badge', () => {
+        const q = makeQuestion({ points: 5 });
+        const card = buildReadonlyQuestionCard(q, 0);
+        const badge = card.querySelector('[data-points-badge]');
+        expect(badge).not.toBeNull();
+    });
+
+    it('points badge показва стойността', () => {
+        const q = makeQuestion({ points: 7 });
+        const card = buildReadonlyQuestionCard(q, 0);
+        const badge = card.querySelector('[data-points-badge]');
+        expect(badge.textContent).toContain('7');
+    });
+
+    it('points badge ползва 1 по подразбиране ако points не е зададен', () => {
+        const q = makeQuestion(); // без points
+        const card = buildReadonlyQuestionCard(q, 0);
+        const badge = card.querySelector('[data-points-badge]');
+        expect(badge.textContent).toContain('1');
+    });
+});
+
+// ---------------------------------------------------------------------------
 // buildReadonlyQuestionCard — sampleAnswer за Open и Code въпроси
 // ---------------------------------------------------------------------------
 

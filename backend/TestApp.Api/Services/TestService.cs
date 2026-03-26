@@ -78,6 +78,7 @@ public class TestService : ITestService
                 Id = Guid.NewGuid(),
                 Text = q.Text,
                 Type = q.Type,
+                Points = q.Points > 0 ? q.Points : ComputeDefaultPoints(q.Type, q.Answers),
                 OrderIndex = qIndex,
                 SampleAnswer = (q.Type == "Open" || q.Type == "Code") ? q.SampleAnswer : null,
                 Answers = q.Answers
@@ -223,6 +224,7 @@ public class TestService : ITestService
                     Id = q.Id,
                     Text = q.Text,
                     Type = q.Type,
+                    Points = q.Points,
                     OrderIndex = q.OrderIndex,
                     SampleAnswer = q.SampleAnswer,
                     Answers = q.Answers
@@ -256,91 +258,95 @@ public class TestService : ITestService
         }
 
         // Изчислява резултата и записва AttemptAnswers
-        // Open въпросите не се оценяват автоматично — изключват се от score
-        var questionResults = test.Questions
-            .OrderBy(q => q.OrderIndex)
-            .Select(question =>
+        // Open/Code въпросите не се оценяват автоматично — изключват се от началния score
+        var attemptAnswersList = new List<AttemptAnswer>();
+        int score = 0;
+        int maxScore = 0;
+
+        foreach (var question in test.Questions.OrderBy(q => q.OrderIndex))
+        {
+            bool isOpenLike = question.Type == "Open" || question.Type == "Code";
+
+            if (isOpenLike)
             {
-                // Open и Code въпросите нямат отговори — маркираме като неоценени
-                if (question.Type == "Open" || question.Type == "Code")
+                // Open и Code: вземаме свободния текстов отговор, маркираме като Pending
+                var openAnswer = request.Answers.FirstOrDefault(a => a.QuestionId == question.Id);
+                attemptAnswersList.Add(new AttemptAnswer
                 {
-                    var openAnswer = request.Answers
-                        .FirstOrDefault(a => a.QuestionId == question.Id);
-                    return new
+                    Id = Guid.NewGuid(),
+                    QuestionId = question.Id,
+                    OpenText = openAnswer?.OpenText,
+                    IsCorrect = false,
+                    GradingStatus = GradingStatus.Pending
+                });
+                // Open/Code точките ще се добавят след AI оценяване
+                continue;
+            }
+
+            // Събира и валидира изпратените AnswerId (защита от инжекция)
+            var submittedIds = request.Answers
+                .Where(a => a.QuestionId == question.Id && a.SelectedAnswerId.HasValue)
+                .Select(a => a.SelectedAnswerId!.Value)
+                .Where(id => question.Answers.Any(a => a.Id == id))
+                .ToList();
+
+            if (question.Type == "Multi")
+            {
+                // Частично точкуване: +1 за верен избор, -1 за грешен, min 0, cap question.Points
+                int correctSelected = submittedIds.Count(id => question.Answers.Any(a => a.Id == id && a.IsCorrect));
+                int wrongSelected = submittedIds.Count(id => question.Answers.Any(a => a.Id == id && !a.IsCorrect));
+                int questionScore = Math.Max(0, Math.Min(question.Points, correctSelected - wrongSelected));
+                score += questionScore;
+                maxScore += question.Points;
+
+                // Записва по един AttemptAnswer за всеки избран отговор
+                if (submittedIds.Count > 0)
+                {
+                    foreach (var selectedId in submittedIds)
                     {
-                        Question = question,
-                        SelectedAnswerId = (Guid?)null,
-                        OpenText = openAnswer?.OpenText,
-                        IsCorrect = false,
-                        Scorable = false
-                    };
-                }
-
-                // Събира всички изпратени отговори за въпроса
-                var submittedIds = request.Answers
-                    .Where(a => a.QuestionId == question.Id && a.SelectedAnswerId.HasValue)
-                    .Select(a => a.SelectedAnswerId!.Value)
-                    .ToList();
-
-                // Валидира — запазва само отговори, принадлежащи на ТОЗИ въпрос (предотвратява инжекция)
-                var validatedIds = submittedIds
-                    .Where(id => question.Answers.Any(a => a.Id == id))
-                    .ToList();
-
-                bool isCorrect;
-                if (question.Type == "Multi")
-                {
-                    // Multi: трябва точно да съвпадат всички верни отговори (нито повече, нито по-малко)
-                    var correctIds = question.Answers
-                        .Where(a => a.IsCorrect)
-                        .Select(a => a.Id)
-                        .ToHashSet();
-                    isCorrect = validatedIds.Count > 0
-                        && new HashSet<Guid>(validatedIds).SetEquals(correctIds);
+                        bool answerIsCorrect = question.Answers.Any(a => a.Id == selectedId && a.IsCorrect);
+                        attemptAnswersList.Add(new AttemptAnswer
+                        {
+                            Id = Guid.NewGuid(),
+                            QuestionId = question.Id,
+                            SelectedAnswerId = selectedId,
+                            IsCorrect = answerIsCorrect,
+                            GradingStatus = GradingStatus.NotApplicable
+                        });
+                    }
                 }
                 else
                 {
-                    // Closed: точно един отговор, трябва да е верен
-                    var singleId = validatedIds.FirstOrDefault();
-                    isCorrect = singleId != default
-                        && question.Answers.Any(a => a.Id == singleId && a.IsCorrect);
+                    // Не е избран нито един отговор
+                    attemptAnswersList.Add(new AttemptAnswer
+                    {
+                        Id = Guid.NewGuid(),
+                        QuestionId = question.Id,
+                        SelectedAnswerId = null,
+                        IsCorrect = false,
+                        GradingStatus = GradingStatus.NotApplicable
+                    });
                 }
-
-                return new
-                {
-                    Question = question,
-                    SelectedAnswerId = validatedIds.FirstOrDefault() == default ? (Guid?)null : (Guid?)validatedIds.First(),
-                    OpenText = (string?)null,
-                    IsCorrect = isCorrect,
-                    Scorable = true
-                };
-            })
-            .ToList();
-
-        // Брои верните отговори само от scorable въпроси
-        int score = questionResults.Count(r => r.IsCorrect && r.Scorable);
-        int scorableTotal = questionResults.Count(r => r.Scorable);
-
-        // Създава AttemptAnswer записи
-        var attemptAnswersList = questionResults
-            .Select(r =>
+            }
+            else
             {
-                // Open и Code въпроси се маркират като Pending за AI оценяване
-                var gradingStatus = (r.Question.Type == "Open" || r.Question.Type == "Code")
-                    ? GradingStatus.Pending
-                    : GradingStatus.NotApplicable;
+                // Closed: всичко или нищо — пълни точки при верен избор, 0 иначе
+                var singleId = submittedIds.FirstOrDefault();
+                bool isCorrect = singleId != default
+                    && question.Answers.Any(a => a.Id == singleId && a.IsCorrect);
+                score += isCorrect ? question.Points : 0;
+                maxScore += question.Points;
 
-                return new AttemptAnswer
+                attemptAnswersList.Add(new AttemptAnswer
                 {
                     Id = Guid.NewGuid(),
-                    QuestionId = r.Question.Id,
-                    SelectedAnswerId = r.SelectedAnswerId,
-                    OpenText = r.OpenText,
-                    IsCorrect = r.IsCorrect,
-                    GradingStatus = gradingStatus
-                };
-            })
-            .ToList();
+                    QuestionId = question.Id,
+                    SelectedAnswerId = singleId == default ? null : singleId,
+                    IsCorrect = isCorrect,
+                    GradingStatus = GradingStatus.NotApplicable
+                });
+            }
+        }
 
         // Записва опита в базата данни (нов обект - immutable pattern)
         var attempt = new Attempt
@@ -348,7 +354,7 @@ public class TestService : ITestService
             Id = Guid.NewGuid(),
             ParticipantName = request.ParticipantName,
             Score = score,
-            TotalQuestions = scorableTotal,
+            TotalQuestions = maxScore,   // Съхраняваме MaxScore в TotalQuestions за обратна съвместимост
             TestId = test.Id,
             CreatedAt = DateTime.UtcNow,
             AttemptAnswers = attemptAnswersList
@@ -357,25 +363,38 @@ public class TestService : ITestService
         _db.Attempts.Add(attempt);
         await _db.SaveChangesAsync();
 
-        // Изчислява процента спрямо оценяемите въпроси
-        double percent = scorableTotal > 0
-            ? Math.Round((double)score / scorableTotal * 100, 2)
+        // Изчислява процента спрямо максималните точки
+        double percent = maxScore > 0
+            ? Math.Round((double)score / maxScore * 100, 2)
             : 0;
+
+        // Изгражда резултата за отговора — по един запис на въпрос
+        var questionResultsList = test.Questions
+            .OrderBy(q => q.OrderIndex)
+            .Select(q =>
+            {
+                var myAnswers = attemptAnswersList.Where(aa => aa.QuestionId == q.Id).ToList();
+                var firstAnswer = myAnswers.FirstOrDefault();
+                bool qIsCorrect = q.Type == "Multi"
+                    ? myAnswers.Any(aa => aa.IsCorrect)   // поне един верен = считаме за верен в резултата
+                    : firstAnswer?.IsCorrect ?? false;
+
+                return new AttemptQuestionResult
+                {
+                    QuestionId = q.Id,
+                    QuestionText = q.Text,
+                    SelectedAnswerId = firstAnswer?.SelectedAnswerId,
+                    IsCorrect = qIsCorrect
+                };
+            })
+            .ToList();
 
         return new AttemptResultResponse
         {
             Score = score,
-            TotalQuestions = scorableTotal,
+            TotalQuestions = maxScore,
             Percent = percent,
-            Results = questionResults
-                .Select(r => new AttemptQuestionResult
-                {
-                    QuestionId = r.Question.Id,
-                    QuestionText = r.Question.Text,
-                    SelectedAnswerId = r.SelectedAnswerId,
-                    IsCorrect = r.IsCorrect
-                })
-                .ToList()
+            Results = questionResultsList
         };
     }
 
@@ -466,6 +485,7 @@ public class TestService : ITestService
                 Id = Guid.NewGuid(),
                 Text = q.Text,
                 Type = q.Type,
+                Points = q.Points > 0 ? q.Points : ComputeDefaultPoints(q.Type, q.Answers),
                 OrderIndex = qIndex,
                 TestId = testId,
                 SampleAnswer = (q.Type == "Open" || q.Type == "Code") ? q.SampleAnswer : null,
@@ -571,9 +591,10 @@ public class TestService : ITestService
 
         if (attempt is null) return null;
 
-        // Изгражда детайли за всеки въпрос
+        // Изгражда детайли за всеки въпрос с точки
         var questions = test.Questions.Select(q =>
         {
+            bool isOpenLike = q.Type == "Open" || q.Type == "Code";
             var myAnswers = attempt.AttemptAnswers.Where(aa => aa.QuestionId == q.Id).ToList();
             var selectedIds = myAnswers
                 .Where(aa => aa.SelectedAnswerId.HasValue)
@@ -586,12 +607,34 @@ public class TestService : ITestService
             var aiFeedback = firstAnswer?.AiFeedback;
             var aiScore = firstAnswer?.AiScore;
 
+            // Изчислява спечелените точки за въпроса
+            int pointsEarned = 0;
+            if (isOpenLike)
+            {
+                // AI оценените точки са в AiScore (0..question.Points)
+                pointsEarned = aiScore ?? 0;
+            }
+            else if (q.Type == "Multi")
+            {
+                // Частично точкуване: +1 верен, -1 грешен, min 0, cap Points
+                int correctSelected = myAnswers.Count(aa => aa.SelectedAnswerId.HasValue && aa.IsCorrect);
+                int wrongSelected = myAnswers.Count(aa => aa.SelectedAnswerId.HasValue && !aa.IsCorrect);
+                pointsEarned = Math.Max(0, Math.Min(q.Points, correctSelected - wrongSelected));
+            }
+            else
+            {
+                // Closed: всичко или нищо
+                pointsEarned = isCorrect == true ? q.Points : 0;
+            }
+
             return new AttemptQuestionDetail
             {
                 QuestionId = q.Id,
                 QuestionText = q.Text,
                 QuestionType = q.Type,
-                Scorable = q.Type != "Open" && q.Type != "Code",
+                Scorable = !isOpenLike,
+                Points = q.Points,
+                PointsEarned = pointsEarned,
                 SampleAnswer = q.SampleAnswer,
                 Answers = q.Answers.Select(a => new AttemptAnswerDetail
                 {
@@ -608,16 +651,22 @@ public class TestService : ITestService
             };
         }).ToList();
 
-        // Изчислява резултата
-        var correctScorable = questions.Count(q => q.Scorable && q.IsCorrect == true);
-        var aiCorrect = questions.Count(q => !q.Scorable && q.GradingStatus == "Graded" && q.AiScore > 0);
+        // Изчислява общия резултат базиран на точки
         var gradedOpenCount = questions.Count(q => !q.Scorable && q.GradingStatus == "Graded");
-        var scorableCount = questions.Count(q => q.Scorable);
-        var totalForPercent = scorableCount + gradedOpenCount;
-        var correctTotal = correctScorable + aiCorrect;
-
         var hasOpen = questions.Any(q => !q.Scorable);
         var allGraded = !hasOpen || questions.Where(q => !q.Scorable).All(q => q.GradingStatus == "Graded");
+
+        // Сума на точките от всички въпроси (включително AI-оценените)
+        int totalScore = questions.Sum(q => q.PointsEarned);
+        // Максимален резултат = сума от точките на оценяемите въпроси + AI оценени open
+        int maxPossible = questions.Where(q => q.Scorable).Sum(q => q.Points)
+                        + questions.Where(q => !q.Scorable && q.GradingStatus == "Graded").Sum(q => q.Points);
+
+        if (maxPossible == 0)
+        {
+            // Само оценяеми въпроси (без Open/Code) — ползваме пълния maxScore
+            maxPossible = questions.Where(q => q.Scorable).Sum(q => q.Points);
+        }
 
         return new AttemptDetailResponse
         {
@@ -626,12 +675,26 @@ public class TestService : ITestService
             ParticipantGroup = null, // Attempt entity няма ParticipantGroup в текущия модел
             StartedAt = attempt.CreatedAt,
             FinishedAt = null,
-            Score = correctTotal,
-            TotalQuestions = totalForPercent > 0 ? totalForPercent : scorableCount,
-            Percent = totalForPercent > 0 ? Math.Round((double)correctTotal / totalForPercent * 100, 1) : 0,
+            Score = totalScore,
+            MaxScore = maxPossible,
+            TotalQuestions = questions.Count,
+            Percent = maxPossible > 0 ? Math.Round((double)totalScore / maxPossible * 100, 1) : 0,
             HasOpenAnswers = hasOpen,
             AllGraded = allGraded,
             Questions = questions,
+        };
+    }
+
+    // Изчислява броя точки по подразбиране спрямо типа въпрос и отговорите
+    // Closed: ceil(отговори / 2), Multi: брой отговори, Open: 3, Code: 4
+    private static int ComputeDefaultPoints(string type, List<CreateAnswerDto> answers)
+    {
+        return type switch
+        {
+            "Open" => 3,
+            "Code" => 4,
+            "Multi" => Math.Max(1, answers.Count),
+            _ => Math.Max(1, (int)Math.Ceiling(answers.Count / 2.0)) // Closed
         };
     }
 
@@ -667,7 +730,7 @@ public class TestService : ITestService
             return true;
         }
 
-        // Оценява всеки Pending отговор с AI
+        // Оценява всеки Pending отговор с AI (предава maxPoints = question.Points)
         foreach (var aa in pendingAnswers)
         {
             var question = test.Questions.FirstOrDefault(q => q.Id == aa.QuestionId);
@@ -675,12 +738,12 @@ public class TestService : ITestService
 
             try
             {
-                var (score, feedback) = await _aiGrading.GradeAnswerAsync(
-                    question.Text, question.SampleAnswer, aa.OpenText ?? "", question.Type);
+                var (aiScore, feedback) = await _aiGrading.GradeAnswerAsync(
+                    question.Text, question.SampleAnswer, aa.OpenText ?? "", question.Type, question.Points);
                 aa.GradingStatus = GradingStatus.Graded;
-                aa.AiScore = score;
+                aa.AiScore = aiScore;
                 aa.AiFeedback = feedback;
-                aa.IsCorrect = score > 0;
+                aa.IsCorrect = aiScore > 0;
                 aa.GradedAt = DateTime.UtcNow;
             }
             catch
@@ -690,29 +753,40 @@ public class TestService : ITestService
             }
         }
 
-        // Преизчислява резултата: оценяеми верни + AI верни
+        // Преизчислява резултата базиран на точки
         var allAnswers = attempt.AttemptAnswers.ToList();
-        var scorableQuestionIds = test.Questions
-            .Where(q => q.Type != "Open" && q.Type != "Code")
-            .Select(q => q.Id)
-            .ToHashSet();
 
-        var correctScorable = allAnswers
-            .Where(aa => scorableQuestionIds.Contains(aa.QuestionId) && aa.IsCorrect)
-            .Select(aa => aa.QuestionId)
-            .Distinct()
-            .Count();
-
-        var aiCorrect = allAnswers.Count(aa =>
+        // Оценяеми въпроси (Closed/Multi) — по точки
+        int scorablePoints = 0;
+        foreach (var q in test.Questions.Where(q => q.Type != "Open" && q.Type != "Code"))
         {
-            var q = test.Questions.FirstOrDefault(q => q.Id == aa.QuestionId);
-            return q != null
-                && (q.Type == "Open" || q.Type == "Code")
-                && aa.GradingStatus == GradingStatus.Graded
-                && aa.AiScore > 0;
-        });
+            if (q.Type == "Multi")
+            {
+                var qAnswers = allAnswers.Where(aa => aa.QuestionId == q.Id && aa.SelectedAnswerId.HasValue).ToList();
+                int correctSel = qAnswers.Count(aa => aa.IsCorrect);
+                int wrongSel = qAnswers.Count(aa => !aa.IsCorrect);
+                scorablePoints += Math.Max(0, Math.Min(q.Points, correctSel - wrongSel));
+            }
+            else
+            {
+                // Closed
+                bool correct = allAnswers.Any(aa => aa.QuestionId == q.Id && aa.IsCorrect);
+                scorablePoints += correct ? q.Points : 0;
+            }
+        }
 
-        attempt.Score = correctScorable + aiCorrect;
+        // AI оценени Open/Code въпроси — взимаме AiScore директно (вече е в диапазона [0, question.Points])
+        int aiPoints = allAnswers
+            .Where(aa =>
+            {
+                var q = test.Questions.FirstOrDefault(q => q.Id == aa.QuestionId);
+                return q != null
+                    && (q.Type == "Open" || q.Type == "Code")
+                    && aa.GradingStatus == GradingStatus.Graded;
+            })
+            .Sum(aa => aa.AiScore ?? 0);
+
+        attempt.Score = scorablePoints + aiPoints;
 
         await _db.SaveChangesAsync();
         return true;

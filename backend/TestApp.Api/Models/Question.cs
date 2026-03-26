@@ -23,6 +23,9 @@ public class Question
     // Навигационно свойство към теста
     public Test Test { get; set; } = null!;
 
+    // Точки за въпроса (по подразбиране 1, учителят може да промени)
+    public int Points { get; set; } = 1;
+
     // Примерен отговор (само за Open и Code въпроси, незадължителен)
     [MaxLength(50000)]
     public string? SampleAnswer { get; set; }

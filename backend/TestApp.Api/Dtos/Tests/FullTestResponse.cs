@@ -44,6 +44,9 @@ public class FullQuestionDto
     // Наредба
     public int OrderIndex { get; set; }
 
+    // Точки за въпроса
+    public int Points { get; set; }
+
     // Примерен отговор (само за Open и Code въпроси)
     public string? SampleAnswer { get; set; }
 

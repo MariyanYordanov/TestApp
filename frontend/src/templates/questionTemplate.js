@@ -80,7 +80,7 @@ export function buildQuestionCard(question, index, { onChange, onRemove }) {
     return card;
 }
 
-// Хедър — горен ред (номер + тип + премахни) + textarea за текст
+// Хедър — горен ред (номер + тип + точки + премахни) + textarea за текст
 function buildQuestionHeader(question, index, qType, { onChange, onRemove }) {
     const header = document.createElement('div');
     header.className = 'question-header';
@@ -94,6 +94,26 @@ function buildQuestionHeader(question, index, qType, { onChange, onRemove }) {
 
     const typeSelect = buildTypeSelect(question.id, qType, onChange);
 
+    // Поле за точки
+    const pointsWrapper = document.createElement('label');
+    pointsWrapper.className = 'question-points-label';
+    pointsWrapper.textContent = 'Точки: ';
+
+    const pointsInput = document.createElement('input');
+    pointsInput.type = 'number';
+    pointsInput.className = 'question-points-input';
+    pointsInput.dataset.pointsFor = question.id;
+    pointsInput.min = '1';
+    pointsInput.max = '100';
+    pointsInput.value = String(question.points ?? 1);
+    pointsInput.addEventListener('input', () => {
+        const val = parseInt(pointsInput.value, 10);
+        if (!isNaN(val) && val >= 1) {
+            onChange({ type: 'update-question-points', questionId: question.id, points: val });
+        }
+    });
+    pointsWrapper.appendChild(pointsInput);
+
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'btn btn-sm btn-secondary';
@@ -103,6 +123,7 @@ function buildQuestionHeader(question, index, qType, { onChange, onRemove }) {
 
     topRow.appendChild(numberLabel);
     topRow.appendChild(typeSelect);
+    topRow.appendChild(pointsWrapper);
     topRow.appendChild(removeBtn);
 
     const textArea = document.createElement('textarea');
@@ -228,8 +249,14 @@ export function buildReadonlyQuestionCard(question, index) {
     typeBadge.className = 'question-type-badge';
     typeBadge.textContent = typeLabels[qType] ?? qType;
 
+    const pointsBadge = document.createElement('span');
+    pointsBadge.className = 'question-points-badge';
+    pointsBadge.dataset.pointsBadge = '';
+    pointsBadge.textContent = `${question.points ?? 1} т.`;
+
     topRow.appendChild(numberLabel);
     topRow.appendChild(typeBadge);
+    topRow.appendChild(pointsBadge);
     card.appendChild(topRow);
 
     const textEl = document.createElement('p');

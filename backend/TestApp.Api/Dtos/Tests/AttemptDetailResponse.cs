@@ -8,6 +8,7 @@ public class AttemptDetailResponse
     public DateTime StartedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
     public int Score { get; set; }
+    public int MaxScore { get; set; }       // Сума от точките на всички оценяеми въпроси
     public int TotalQuestions { get; set; }
     public double Percent { get; set; }
     public bool HasOpenAnswers { get; set; }    // має ли Open/Code въпроси
@@ -21,6 +22,8 @@ public class AttemptQuestionDetail
     public string QuestionText { get; set; } = "";
     public string QuestionType { get; set; } = "";  // Closed / Multi / Open / Code
     public bool Scorable { get; set; }
+    public int Points { get; set; }                 // максимални точки за въпроса
+    public int PointsEarned { get; set; }           // спечелени точки (след оценяване)
     public string? SampleAnswer { get; set; }       // за Open/Code
     public List<AttemptAnswerDetail> Answers { get; set; } = [];  // за Closed/Multi
     public string? OpenText { get; set; }           // за Open/Code

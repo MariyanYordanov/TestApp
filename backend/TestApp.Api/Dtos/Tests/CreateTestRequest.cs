@@ -35,6 +35,10 @@ public class CreateQuestionDto
         ErrorMessage = "Типът трябва да бъде Closed, Multi, Open или Code.")]
     public string Type { get; set; } = "Closed";
 
+    // Точки за въпроса (по подразбиране 1, мин 1 макс 100)
+    [Range(1, 100, ErrorMessage = "Точките трябва да бъдат между 1 и 100.")]
+    public int Points { get; set; } = 1;
+
     // Примерен отговор (само за Open и Code въпроси, незадължителен, макс 50000 символа)
     [MaxLength(50000)]
     public string? SampleAnswer { get; set; }

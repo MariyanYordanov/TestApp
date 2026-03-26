@@ -17,7 +17,8 @@ public class AiGradingService : IAiGradingService
     }
 
     public async Task<(int Score, string Feedback)> GradeAnswerAsync(
-        string questionText, string? sampleAnswer, string studentAnswer, string questionType)
+        string questionText, string? sampleAnswer, string studentAnswer, string questionType,
+        int maxPoints = 1)
     {
         var systemPrompt = questionType == "Code"
             ? "You are a programming instructor grading a student's code answer. Be concise and fair."
@@ -27,12 +28,13 @@ public class AiGradingService : IAiGradingService
             ? $"Expected/Sample answer: {sampleAnswer}"
             : "";
 
-        var scoreJsonFormat = "{\"score\": 0 or 1, \"feedback\": \"brief explanation in the same language as the question\"}";
+        // Подкана с конкретния максимален брой точки
+        var scoreJsonFormat = $"{{\"score\": integer 0 to {maxPoints}, \"feedback\": \"brief explanation in the same language as the question\"}}";
         var userPrompt = $"Grade this student answer. Respond with JSON only: {scoreJsonFormat}\n\n" +
                          $"Question: {questionText}\n" +
                          (string.IsNullOrEmpty(sampleAnswerLine) ? "" : sampleAnswerLine + "\n") +
                          $"Student's answer: {studentAnswer}\n\n" +
-                         "Score 1 if the answer demonstrates understanding of the concept. Score 0 if incorrect or insufficient.";
+                         $"Score {maxPoints} for an excellent complete answer, score 0 for completely wrong or missing.";
 
         var requestBody = new
         {
@@ -67,7 +69,8 @@ public class AiGradingService : IAiGradingService
             var score = resultDoc.RootElement.GetProperty("score").GetInt32();
             var feedback = resultDoc.RootElement.GetProperty("feedback").GetString() ?? "";
 
-            return (Math.Clamp(score, 0, 1), feedback);
+            // Ограничаваме резултата в диапазона [0, maxPoints]
+            return (Math.Clamp(score, 0, maxPoints), feedback);
         }
         catch (Exception ex)
         {

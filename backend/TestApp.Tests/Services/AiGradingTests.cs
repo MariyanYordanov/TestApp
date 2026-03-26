@@ -367,7 +367,8 @@ public class AiGradingTests : IDisposable
         var (test, attempt) = await SeedTestAndAttemptWithOpenQuestion();
         var mockAi = new Mock<IAiGradingService>();
         mockAi.Setup(ai => ai.GradeAnswerAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync((1, "Отговорът е правилен."));
 
         var (service, db) = CreateServiceWithAi(mockAi.Object);
@@ -394,7 +395,8 @@ public class AiGradingTests : IDisposable
         var (test, attempt) = await SeedTestAndAttemptWithOpenQuestion();
         var mockAi = new Mock<IAiGradingService>();
         mockAi.Setup(ai => ai.GradeAnswerAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync((1, "Вярно!"));
 
         var (service, db) = CreateServiceWithAi(mockAi.Object);
@@ -414,7 +416,8 @@ public class AiGradingTests : IDisposable
         var (test, attempt) = await SeedTestAndAttemptWithOpenQuestion();
         var mockAi = new Mock<IAiGradingService>();
         mockAi.Setup(ai => ai.GradeAnswerAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync((0, "Отговорът е непълен."));
 
         var (service, db) = CreateServiceWithAi(mockAi.Object);
@@ -434,7 +437,8 @@ public class AiGradingTests : IDisposable
         var (test, attempt) = await SeedTestAndAttemptWithOpenQuestion();
         var mockAi = new Mock<IAiGradingService>();
         mockAi.Setup(ai => ai.GradeAnswerAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<int>()))
             .ThrowsAsync(new HttpRequestException("AI unavailable"));
 
         var (service, db) = CreateServiceWithAi(mockAi.Object);
@@ -457,7 +461,8 @@ public class AiGradingTests : IDisposable
         var (test, attempt) = await SeedTestAndAttemptWithOpenQuestion();
         var mockAi = new Mock<IAiGradingService>();
         mockAi.Setup(ai => ai.GradeAnswerAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync((1, "OK"));
 
         var (service, db) = CreateServiceWithAi(mockAi.Object);

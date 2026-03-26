@@ -16,12 +16,24 @@ function nextId(prefix) {
 // Чисти функции за управление на state (immutable)
 // ---------------------------------------------------------------------------
 
+// Изчислява точките по подразбиране спрямо типа въпрос и броя отговори
+// Closed: ceil(answerCount / 2), Multi: answerCount (min 1), Open: 3, Code: 4
+export function getDefaultPoints(questionType, answerCount) {
+    if (questionType === 'Open') return 3;
+    if (questionType === 'Code') return 4;
+    if (questionType === 'Multi') return Math.max(1, answerCount);
+    // Closed
+    return Math.max(1, Math.ceil(answerCount / 2));
+}
+
 // Добавя нов празен въпрос (тип Closed по подразбиране)
 export function addQuestion(state) {
+    const defaultAnswerCount = 2;
     const newQuestion = {
         id: nextId('q'),
         text: '',
         type: 'Closed',
+        points: getDefaultPoints('Closed', defaultAnswerCount),
         answers: [
             { id: nextId('a'), text: '', isCorrect: false },
             { id: nextId('a'), text: '', isCorrect: false },
@@ -51,6 +63,7 @@ export function updateQuestionText(state, questionId, text) {
 // Обновява типа на въпрос.
 // При преминаване от Open към Closed/Multi добавя 2 празни отговора ако няма.
 // При преминаване към Closed нулира isCorrect флаговете (само 1 е верен).
+// Автоматично обновява points при смяна на тип.
 export function updateQuestionType(state, questionId, questionType) {
     return {
         ...state,
@@ -79,8 +92,21 @@ export function updateQuestionType(state, questionId, questionType) {
             // При преминаване от Open/Code към Closed/Multi — изчистваме sampleAnswer
             const sampleAnswer = isOpenLike ? q.sampleAnswer : undefined;
 
-            return { ...q, type: questionType, answers, sampleAnswer };
+            // Автоматично изчисляваме points за новия тип и брой отговори
+            const points = getDefaultPoints(questionType, answers.length);
+
+            return { ...q, type: questionType, points, answers, sampleAnswer };
         }),
+    };
+}
+
+// Обновява точките на въпрос (immutable)
+export function updateQuestionPoints(state, questionId, points) {
+    return {
+        ...state,
+        questions: state.questions.map(q =>
+            q.id === questionId ? { ...q, points } : q
+        ),
     };
 }
 
@@ -288,6 +314,8 @@ function applyPatch(state, patch) {
             return toggleCorrectAnswer(state, patch.questionId, patch.answerId);
         case 'update-sample-answer':
             return updateSampleAnswer(state, patch.questionId, patch.sampleAnswer);
+        case 'update-question-points':
+            return updateQuestionPoints(state, patch.questionId, patch.points);
         default:
             return state;
     }
