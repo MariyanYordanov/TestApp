@@ -407,9 +407,32 @@ public class TestService : ITestService
         test.Description = request.Description;
         test.Duration = request.Duration;
 
-        // Заменя въпросите и отговорите изцяло
-        _db.Questions.RemoveRange(test.Questions);
+        // Валидира новите категории преди да започнем промените
+        var categoryGuids = request.CategoryIds
+            .Where(id => Guid.TryParse(id, out _))
+            .Select(Guid.Parse)
+            .ToList();
 
+        if (categoryGuids.Count > 0)
+        {
+            var existingCategoryIds = await _db.Categories
+                .Where(c => categoryGuids.Contains(c.Id))
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            var missingIds = categoryGuids.Except(existingCategoryIds).ToList();
+            if (missingIds.Count > 0)
+                throw new InvalidOperationException(
+                    $"Категории не са намерени: {string.Join(", ", missingIds)}");
+        }
+
+        // Стъпка 1: Изтрива старите въпроси, отговори и категории
+        // (изпращаме deletes отделно за да избегнем PK конфликт при повторни категории)
+        _db.Questions.RemoveRange(test.Questions);
+        _db.Set<TestCategory>().RemoveRange(test.TestCategories);
+        await _db.SaveChangesAsync();
+
+        // Стъпка 2: Добавя новите въпроси, отговори и категории
         var newQuestions = request.Questions
             .Select((q, qIndex) => new Question
             {
@@ -432,27 +455,6 @@ public class TestService : ITestService
             .ToList();
 
         _db.Questions.AddRange(newQuestions);
-
-        // Заменя категориите изцяло
-        _db.Set<TestCategory>().RemoveRange(test.TestCategories);
-
-        var categoryGuids = request.CategoryIds
-            .Where(id => Guid.TryParse(id, out _))
-            .Select(Guid.Parse)
-            .ToList();
-
-        if (categoryGuids.Count > 0)
-        {
-            var existingCategoryIds = await _db.Categories
-                .Where(c => categoryGuids.Contains(c.Id))
-                .Select(c => c.Id)
-                .ToListAsync();
-
-            var missingIds = categoryGuids.Except(existingCategoryIds).ToList();
-            if (missingIds.Count > 0)
-                throw new InvalidOperationException(
-                    $"Категории не са намерени: {string.Join(", ", missingIds)}");
-        }
 
         var newCategories = categoryGuids
             .Select(categoryId => new TestCategory { TestId = testId, CategoryId = categoryId })
