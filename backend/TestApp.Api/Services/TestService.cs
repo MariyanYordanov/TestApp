@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using TestApp.Api.Data;
 using TestApp.Api.Dtos.Tests;
 using TestApp.Api.Models;
+using TestApp.Api.Models.Enums;
 
 namespace TestApp.Api.Services;
 
@@ -11,11 +12,13 @@ public class TestService : ITestService
 {
     private readonly AppDbContext _db;
     private readonly IShareCodeGenerator _shareCodeGenerator;
+    private readonly IAiGradingService? _aiGrading;
 
-    public TestService(AppDbContext db, IShareCodeGenerator shareCodeGenerator)
+    public TestService(AppDbContext db, IShareCodeGenerator shareCodeGenerator, IAiGradingService? aiGrading = null)
     {
         _db = db;
         _shareCodeGenerator = shareCodeGenerator;
+        _aiGrading = aiGrading;
     }
 
     // Връща всички тестове на конкретен собственик
@@ -320,13 +323,22 @@ public class TestService : ITestService
 
         // Създава AttemptAnswer записи
         var attemptAnswersList = questionResults
-            .Select(r => new AttemptAnswer
+            .Select(r =>
             {
-                Id = Guid.NewGuid(),
-                QuestionId = r.Question.Id,
-                SelectedAnswerId = r.SelectedAnswerId,
-                OpenText = r.OpenText,
-                IsCorrect = r.IsCorrect
+                // Open и Code въпроси се маркират като Pending за AI оценяване
+                var gradingStatus = (r.Question.Type == "Open" || r.Question.Type == "Code")
+                    ? GradingStatus.Pending
+                    : GradingStatus.NotApplicable;
+
+                return new AttemptAnswer
+                {
+                    Id = Guid.NewGuid(),
+                    QuestionId = r.Question.Id,
+                    SelectedAnswerId = r.SelectedAnswerId,
+                    OpenText = r.OpenText,
+                    IsCorrect = r.IsCorrect,
+                    GradingStatus = gradingStatus
+                };
             })
             .ToList();
 
@@ -540,5 +552,169 @@ public class TestService : ITestService
                 CreatedAt = a.CreatedAt
             })
             .ToListAsync();
+    }
+
+    // Връща детайлен преглед на опит — учителят вижда всеки въпрос и отговора на ученика
+    public async Task<AttemptDetailResponse?> GetAttemptDetailAsync(Guid testId, Guid attemptId, Guid ownerId)
+    {
+        // Проверява собствеността на теста
+        var test = await _db.Tests
+            .Include(t => t.Questions.OrderBy(q => q.OrderIndex))
+                .ThenInclude(q => q.Answers.OrderBy(a => a.OrderIndex))
+            .FirstOrDefaultAsync(t => t.Id == testId && t.OwnerId == ownerId);
+
+        if (test is null) return null;
+
+        var attempt = await _db.Attempts
+            .Include(a => a.AttemptAnswers)
+            .FirstOrDefaultAsync(a => a.Id == attemptId && a.TestId == testId);
+
+        if (attempt is null) return null;
+
+        // Изгражда детайли за всеки въпрос
+        var questions = test.Questions.Select(q =>
+        {
+            var myAnswers = attempt.AttemptAnswers.Where(aa => aa.QuestionId == q.Id).ToList();
+            var selectedIds = myAnswers
+                .Where(aa => aa.SelectedAnswerId.HasValue)
+                .Select(aa => aa.SelectedAnswerId!.Value)
+                .ToHashSet();
+            var firstAnswer = myAnswers.FirstOrDefault();
+            var openText = firstAnswer?.OpenText;
+            var gradingStatus = firstAnswer?.GradingStatus ?? GradingStatus.NotApplicable;
+            var isCorrect = firstAnswer?.IsCorrect;
+            var aiFeedback = firstAnswer?.AiFeedback;
+            var aiScore = firstAnswer?.AiScore;
+
+            return new AttemptQuestionDetail
+            {
+                QuestionId = q.Id,
+                QuestionText = q.Text,
+                QuestionType = q.Type,
+                Scorable = q.Type != "Open" && q.Type != "Code",
+                SampleAnswer = q.SampleAnswer,
+                Answers = q.Answers.Select(a => new AttemptAnswerDetail
+                {
+                    AnswerId = a.Id,
+                    Text = a.Text,
+                    IsCorrect = a.IsCorrect,
+                    WasSelected = selectedIds.Contains(a.Id),
+                }).ToList(),
+                OpenText = openText,
+                IsCorrect = isCorrect,
+                GradingStatus = gradingStatus.ToString(),
+                AiFeedback = aiFeedback,
+                AiScore = aiScore,
+            };
+        }).ToList();
+
+        // Изчислява резултата
+        var correctScorable = questions.Count(q => q.Scorable && q.IsCorrect == true);
+        var aiCorrect = questions.Count(q => !q.Scorable && q.GradingStatus == "Graded" && q.AiScore > 0);
+        var gradedOpenCount = questions.Count(q => !q.Scorable && q.GradingStatus == "Graded");
+        var scorableCount = questions.Count(q => q.Scorable);
+        var totalForPercent = scorableCount + gradedOpenCount;
+        var correctTotal = correctScorable + aiCorrect;
+
+        var hasOpen = questions.Any(q => !q.Scorable);
+        var allGraded = !hasOpen || questions.Where(q => !q.Scorable).All(q => q.GradingStatus == "Graded");
+
+        return new AttemptDetailResponse
+        {
+            AttemptId = attempt.Id,
+            ParticipantName = attempt.ParticipantName,
+            ParticipantGroup = null, // Attempt entity няма ParticipantGroup в текущия модел
+            StartedAt = attempt.CreatedAt,
+            FinishedAt = null,
+            Score = correctTotal,
+            TotalQuestions = totalForPercent > 0 ? totalForPercent : scorableCount,
+            Percent = totalForPercent > 0 ? Math.Round((double)correctTotal / totalForPercent * 100, 1) : 0,
+            HasOpenAnswers = hasOpen,
+            AllGraded = allGraded,
+            Questions = questions,
+        };
+    }
+
+    // Стартира AI оценяване на всички Pending отговори в опит
+    public async Task<bool> GradeAttemptAsync(Guid testId, Guid attemptId, Guid ownerId)
+    {
+        var test = await _db.Tests
+            .Include(t => t.Questions)
+                .ThenInclude(q => q.Answers)
+            .FirstOrDefaultAsync(t => t.Id == testId && t.OwnerId == ownerId);
+
+        if (test is null) return false;
+
+        var attempt = await _db.Attempts
+            .Include(a => a.AttemptAnswers)
+            .FirstOrDefaultAsync(a => a.Id == attemptId && a.TestId == testId);
+
+        if (attempt is null) return false;
+
+        var pendingAnswers = attempt.AttemptAnswers
+            .Where(aa => aa.GradingStatus == GradingStatus.Pending)
+            .ToList();
+
+        if (_aiGrading is null)
+        {
+            // AI услугата не е конфигурирана — маркира като Failed
+            foreach (var aa in pendingAnswers)
+            {
+                aa.GradingStatus = GradingStatus.Failed;
+                aa.AiFeedback = "AI оценяването не е конфигурирано.";
+            }
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        // Оценява всеки Pending отговор с AI
+        foreach (var aa in pendingAnswers)
+        {
+            var question = test.Questions.FirstOrDefault(q => q.Id == aa.QuestionId);
+            if (question is null) continue;
+
+            try
+            {
+                var (score, feedback) = await _aiGrading.GradeAnswerAsync(
+                    question.Text, question.SampleAnswer, aa.OpenText ?? "", question.Type);
+                aa.GradingStatus = GradingStatus.Graded;
+                aa.AiScore = score;
+                aa.AiFeedback = feedback;
+                aa.IsCorrect = score > 0;
+                aa.GradedAt = DateTime.UtcNow;
+            }
+            catch
+            {
+                aa.GradingStatus = GradingStatus.Failed;
+                aa.AiFeedback = "Грешка при автоматична проверка.";
+            }
+        }
+
+        // Преизчислява резултата: оценяеми верни + AI верни
+        var allAnswers = attempt.AttemptAnswers.ToList();
+        var scorableQuestionIds = test.Questions
+            .Where(q => q.Type != "Open" && q.Type != "Code")
+            .Select(q => q.Id)
+            .ToHashSet();
+
+        var correctScorable = allAnswers
+            .Where(aa => scorableQuestionIds.Contains(aa.QuestionId) && aa.IsCorrect)
+            .Select(aa => aa.QuestionId)
+            .Distinct()
+            .Count();
+
+        var aiCorrect = allAnswers.Count(aa =>
+        {
+            var q = test.Questions.FirstOrDefault(q => q.Id == aa.QuestionId);
+            return q != null
+                && (q.Type == "Open" || q.Type == "Code")
+                && aa.GradingStatus == GradingStatus.Graded
+                && aa.AiScore > 0;
+        });
+
+        attempt.Score = correctScorable + aiCorrect;
+
+        await _db.SaveChangesAsync();
+        return true;
     }
 }

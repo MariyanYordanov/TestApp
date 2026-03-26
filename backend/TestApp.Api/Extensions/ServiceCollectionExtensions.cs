@@ -66,6 +66,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IShareCodeGenerator, ShareCodeGenerator>();
         services.AddScoped<ICategoryService, CategoryService>();
 
+        // Регистрира AI оценяващата услуга (само ако е конфигурирано API Key)
+        var anthropicKey = config["Anthropic:ApiKey"];
+        if (!string.IsNullOrEmpty(anthropicKey))
+        {
+            services.AddHttpClient<IAiGradingService, AiGradingService>();
+        }
+
         // Конфигурира CORS политика
         services.AddCors(options =>
         {

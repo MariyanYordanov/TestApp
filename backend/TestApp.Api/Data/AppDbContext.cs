@@ -85,5 +85,10 @@ public class AppDbContext : DbContext
         builder.Entity<Question>()
             .Property(q => q.SampleAnswer)
             .HasMaxLength(50000);
+
+        // GradingStatus се съхранява като int в базата данни
+        builder.Entity<AttemptAnswer>()
+            .Property(aa => aa.GradingStatus)
+            .HasConversion<int>();
     }
 }

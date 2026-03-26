@@ -1,6 +1,7 @@
 // Стъпка 23 — AttemptAnswer.cs
 // Entity: избран отговор в опит
 using System.ComponentModel.DataAnnotations;
+using TestApp.Api.Models.Enums;
 namespace TestApp.Api.Models;
 
 public class AttemptAnswer
@@ -32,4 +33,16 @@ public class AttemptAnswer
 
     // Дали отговорът е верен
     public bool IsCorrect { get; set; }
+
+    // Статус на AI оценяване (NotApplicable за Closed/Multi, Pending/Graded/Failed за Open/Code)
+    public GradingStatus GradingStatus { get; set; } = GradingStatus.NotApplicable;
+
+    // AI оценка: 0 или 1 (може да се разшири за частично точкуване)
+    public int? AiScore { get; set; }
+
+    // Обяснение от AI
+    public string? AiFeedback { get; set; }
+
+    // Дата и час на оценяване от AI
+    public DateTime? GradedAt { get; set; }
 }

@@ -32,4 +32,10 @@ public interface ITestService
 
     // Изтрива тест. Връща false ако не е намерен или не е на ownerId.
     Task<bool> DeleteTestAsync(Guid testId, Guid ownerId);
+
+    // Връща детайлен преглед на опит (въпроси + отговори на ученика). Само за собственика на теста.
+    Task<AttemptDetailResponse?> GetAttemptDetailAsync(Guid testId, Guid attemptId, Guid ownerId);
+
+    // Стартира AI оценяване на всички Pending отговори в опит. Само за собственика на теста.
+    Task<bool> GradeAttemptAsync(Guid testId, Guid attemptId, Guid ownerId);
 }

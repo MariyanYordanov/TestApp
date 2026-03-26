@@ -169,6 +169,36 @@ public class TestsController : ControllerBase
         return Ok(result);
     }
 
+    // GET api/tests/{testId}/attempts/{attemptId} — детайлен преглед на опит (само за собственика)
+    [HttpGet("{testId:guid}/attempts/{attemptId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetAttemptDetail(Guid testId, Guid attemptId)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var result = await _testService.GetAttemptDetailAsync(testId, attemptId, ownerId);
+        if (result is null)
+            return NotFound(new { error = "Опитът не е намерен." });
+
+        return Ok(result);
+    }
+
+    // POST api/tests/{testId}/attempts/{attemptId}/grade — стартира AI оценяване
+    [HttpPost("{testId:guid}/attempts/{attemptId:guid}/grade")]
+    [Authorize]
+    public async Task<IActionResult> GradeAttempt(Guid testId, Guid attemptId)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var success = await _testService.GradeAttemptAsync(testId, attemptId, ownerId);
+        if (!success)
+            return NotFound(new { error = "Опитът не е намерен." });
+
+        return Ok(new { message = "Оценяването завърши." });
+    }
+
     // Опитва да извлече userId от JWT токена — връща false ако липсва claim
     private bool TryGetCurrentUserId(out Guid userId)
     {

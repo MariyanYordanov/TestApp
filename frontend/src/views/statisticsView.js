@@ -41,6 +41,7 @@ export async function showStatistics(_ctx) {
         const testId = select.value;
         if (testId) loadAttempts(testId, statsArea);
     });
+
 }
 
 // Изгражда цялата страница: заглавие + dropdown + зона за статистика
@@ -114,7 +115,8 @@ async function loadAttempts(testId, container) {
         if (attempts.length === 0) {
             container.replaceChildren(buildEmptyStatsMessage());
         } else {
-            container.replaceChildren(buildStatsTable(attempts));
+            // Предаваме testId на buildStatsTable за навигация при клик върху ред
+            container.replaceChildren(buildStatsTable(attempts, testId));
         }
     } catch (err) {
         const errorEl = document.createElement('div');

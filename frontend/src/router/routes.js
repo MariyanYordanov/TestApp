@@ -15,6 +15,7 @@ import { showTestDetails } from '../views/testDetailsView.js';
 import { showCategories }  from '../views/categoriesView.js';
 import { showStatistics }  from '../views/statisticsView.js';
 import { showAccount }     from '../views/accountView.js';
+import { showAttemptDetail } from '../views/attemptDetailView.js';
 import { showTestEntry }   from '../views/participant/testEntryView.js';
 import { showTestTaking }  from '../views/participant/testTakingView.js';
 import { isAuthenticated } from '../services/auth.js';
@@ -84,6 +85,7 @@ export function initRoutes() {
     page('/categories',         authGuard, (ctx) => safeRender(showCategories, ctx));
     page('/statistics',         authGuard, (ctx) => safeRender(showStatistics, ctx));
     page('/account',            authGuard, (ctx) => safeRender(showAccount, ctx));
+    page('/tests/:testId/attempts/:attemptId', authGuard, (ctx) => safeRender(showAttemptDetail, ctx));
 
     // ----------------------------------------------------------
     // 404 — всеки непознат URL

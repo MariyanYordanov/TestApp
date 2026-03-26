@@ -182,6 +182,62 @@ describe('buildStatsTable() — структура', () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildStatsRow() — навигация при клик (testId параметър)
+// ---------------------------------------------------------------------------
+
+describe('buildStatsRow() — навигация при клик', () => {
+    it('редът е кликваем когато testId е подаден', () => {
+        const row = buildStatsRow(makeAttempt({ id: 'att-1' }), 'test-uuid-1');
+        expect(row.style.cursor).toBe('pointer');
+    });
+
+    it('редът не е кликваем без testId', () => {
+        const row = buildStatsRow(makeAttempt());
+        expect(row.style.cursor).toBe('');
+    });
+
+    it('кликването извиква page() с правилния URL', async () => {
+        // page е mockнат чрез alias в vitest.config.js
+        const { default: page } = await import('../../../lib/page.min.js');
+        page.mockClear();
+
+        const row = buildStatsRow(makeAttempt({ id: 'att-123' }), 'test-456');
+        row.click();
+
+        expect(page).toHaveBeenCalledWith('/tests/test-456/attempts/att-123');
+    });
+
+    it('не добавя click listener когато attempt.id липсва', () => {
+        const row = buildStatsRow(makeAttempt({ id: undefined }), 'test-uuid-1');
+        expect(row.style.cursor).toBe('');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildStatsTable() — с testId
+// ---------------------------------------------------------------------------
+
+describe('buildStatsTable() — с testId', () => {
+    it('предава testId на buildStatsRow (редовете са кликваеми)', () => {
+        const attempts = [makeAttempt({ id: 'att-1' }), makeAttempt({ id: 'att-2' })];
+        const table = buildStatsTable(attempts, 'test-uuid-1');
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            expect(row.style.cursor).toBe('pointer');
+        });
+    });
+
+    it('редовете не са кликваеми без testId', () => {
+        const attempts = [makeAttempt({ id: 'att-1' })];
+        const table = buildStatsTable(attempts);
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            expect(row.style.cursor).toBe('');
+        });
+    });
+});
+
+// ---------------------------------------------------------------------------
 // buildEmptyStatsMessage()
 // ---------------------------------------------------------------------------
 

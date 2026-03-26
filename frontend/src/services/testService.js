@@ -60,3 +60,13 @@ export async function updateTest(testId, testData) {
 export async function deleteTest(testId) {
     return api.delete(`/tests/${testId}`);
 }
+
+// Взима детайлите на един опит (учителят вижда въпроси + отговори на ученика)
+export async function getAttemptDetail(testId, attemptId) {
+    return api.get(`/tests/${testId}/attempts/${attemptId}`);
+}
+
+// Стартира AI оценяване на открит опит
+export async function gradeAttempt(testId, attemptId) {
+    return api.post(`/tests/${testId}/attempts/${attemptId}/grade`, {});
+}

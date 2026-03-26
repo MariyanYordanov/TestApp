@@ -1,6 +1,7 @@
 // Стъпка 49 — statsTableTemplate.js
 // Шаблон за таблица с резултати от опити
 
+import page from '../../lib/page.min.js';
 import { formatDate } from '../utils/formatDate.js';
 
 // Изчислява процент без деление на нула
@@ -10,9 +11,18 @@ function calcPercent(score, total) {
 }
 
 // Изгражда ред за един опит в таблицата
-// attempt: { participantName, score, totalQuestions, createdAt }
-export function buildStatsRow(attempt) {
+// attempt: { id, participantName, score, totalQuestions, createdAt }
+// testId: GUID на теста — нужен за навигация към детайлния преглед
+export function buildStatsRow(attempt, testId) {
     const tr = document.createElement('tr');
+
+    // Кликване върху ред отваря детайлния преглед на опита
+    if (testId && attempt.id) {
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', () => {
+            page(`/tests/${testId}/attempts/${attempt.id}`);
+        });
+    }
 
     // Клетка: участник
     const tdName = document.createElement('td');
@@ -42,7 +52,8 @@ export function buildStatsRow(attempt) {
 
 // Изгражда цялата таблица с опити
 // attempts: масив от опити — не се мутира
-export function buildStatsTable(attempts) {
+// testId: GUID на теста — предава се на buildStatsRow за навигация
+export function buildStatsTable(attempts, testId) {
     const table = document.createElement('table');
     table.className = 'stats-table';
 
@@ -59,7 +70,7 @@ export function buildStatsTable(attempts) {
 
     // Тяло — итерираме без мутация
     const tbody = document.createElement('tbody');
-    attempts.forEach(attempt => tbody.appendChild(buildStatsRow(attempt)));
+    attempts.forEach(attempt => tbody.appendChild(buildStatsRow(attempt, testId)));
     table.appendChild(tbody);
 
     return table;
