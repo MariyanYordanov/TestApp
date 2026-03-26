@@ -367,6 +367,126 @@ public class TestService : ITestService
         };
     }
 
+    // Обновява съществуващ тест — заменя въпросите, отговорите и категориите изцяло
+    public async Task<TestListItem?> UpdateTestAsync(Guid testId, CreateTestRequest request, Guid ownerId)
+    {
+        // Зарежда теста с въпроси, отговори и категории (с tracking за промени)
+        var test = await _db.Tests
+            .Include(t => t.Questions)
+                .ThenInclude(q => q.Answers)
+            .Include(t => t.TestCategories)
+            .FirstOrDefaultAsync(t => t.Id == testId && t.OwnerId == ownerId);
+
+        if (test is null) return null;
+
+        // Валидира въпросите (същите правила като при създаване)
+        if (request.Questions == null || request.Questions.Count == 0)
+            throw new InvalidOperationException("Тестът трябва да съдържа поне 1 въпрос.");
+
+        foreach (var q in request.Questions)
+        {
+            if (q.Type == "Open" || q.Type == "Code")
+            {
+                if (q.Answers.Any())
+                    throw new InvalidOperationException(
+                        $"Въпросът '{q.Text}' от тип {q.Type} не трябва да има отговори.");
+
+                int maxSampleLen = q.Type == "Code" ? 50000 : 10000;
+                if (q.SampleAnswer?.Length > maxSampleLen)
+                    throw new InvalidOperationException(
+                        $"Примерният отговор на въпрос '{q.Text}' надвишава {maxSampleLen} символа.");
+
+                continue;
+            }
+            if (!q.Answers.Any(a => a.IsCorrect))
+                throw new InvalidOperationException($"Въпросът '{q.Text}' няма верен отговор.");
+        }
+
+        // Обновява основните полета
+        test.Title = request.Title;
+        test.Description = request.Description;
+        test.Duration = request.Duration;
+
+        // Заменя въпросите и отговорите изцяло
+        _db.Questions.RemoveRange(test.Questions);
+
+        var newQuestions = request.Questions
+            .Select((q, qIndex) => new Question
+            {
+                Id = Guid.NewGuid(),
+                Text = q.Text,
+                Type = q.Type,
+                OrderIndex = qIndex,
+                TestId = testId,
+                SampleAnswer = (q.Type == "Open" || q.Type == "Code") ? q.SampleAnswer : null,
+                Answers = q.Answers
+                    .Select((a, aIndex) => new Answer
+                    {
+                        Id = Guid.NewGuid(),
+                        Text = a.Text,
+                        IsCorrect = a.IsCorrect,
+                        OrderIndex = aIndex
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        _db.Questions.AddRange(newQuestions);
+
+        // Заменя категориите изцяло
+        _db.Set<TestCategory>().RemoveRange(test.TestCategories);
+
+        var categoryGuids = request.CategoryIds
+            .Where(id => Guid.TryParse(id, out _))
+            .Select(Guid.Parse)
+            .ToList();
+
+        if (categoryGuids.Count > 0)
+        {
+            var existingCategoryIds = await _db.Categories
+                .Where(c => categoryGuids.Contains(c.Id))
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            var missingIds = categoryGuids.Except(existingCategoryIds).ToList();
+            if (missingIds.Count > 0)
+                throw new InvalidOperationException(
+                    $"Категории не са намерени: {string.Join(", ", missingIds)}");
+        }
+
+        var newCategories = categoryGuids
+            .Select(categoryId => new TestCategory { TestId = testId, CategoryId = categoryId })
+            .ToList();
+
+        _db.Set<TestCategory>().AddRange(newCategories);
+
+        await _db.SaveChangesAsync();
+
+        return new TestListItem
+        {
+            Id = test.Id,
+            Title = test.Title,
+            Status = test.Status.ToString(),
+            QuestionsCount = newQuestions.Count,
+            AttemptsCount = await _db.Attempts.CountAsync(a => a.TestId == testId),
+            CreatedAt = test.CreatedAt,
+            ShareCode = test.ShareCode
+        };
+    }
+
+    // Изтрива тест (само ако ownerId съвпада)
+    public async Task<bool> DeleteTestAsync(Guid testId, Guid ownerId)
+    {
+        var test = await _db.Tests
+            .FirstOrDefaultAsync(t => t.Id == testId && t.OwnerId == ownerId);
+
+        if (test is null) return false;
+
+        _db.Tests.Remove(test);
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
     // Публикува тест (Draft → Published)
     public async Task<bool> PublishTestAsync(Guid testId, Guid ownerId)
     {

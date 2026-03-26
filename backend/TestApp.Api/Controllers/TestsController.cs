@@ -96,6 +96,38 @@ public class TestsController : ControllerBase
         return Ok(attempts);
     }
 
+    // PUT api/tests/{id} — обновява тест (заглавие, въпроси, категории)
+    [HttpPut("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> UpdateTest(Guid id, [FromBody] CreateTestRequest request)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var result = await _testService.UpdateTestAsync(id, request, ownerId);
+
+        if (result is null)
+            return NotFound(new { error = "Тестът не е намерен." });
+
+        return Ok(result);
+    }
+
+    // DELETE api/tests/{id} — изтрива тест
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteTest(Guid id)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var success = await _testService.DeleteTestAsync(id, ownerId);
+
+        if (!success)
+            return NotFound(new { error = "Тестът не е намерен." });
+
+        return NoContent();
+    }
+
     // PUT api/tests/{id}/publish — публикува тест (Draft → Published)
     [HttpPut("{id:guid}/publish")]
     [Authorize]

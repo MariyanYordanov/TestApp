@@ -26,4 +26,10 @@ public interface ITestService
 
     // Връща обобщените резултати на опитите за даден тест (само за собственика)
     Task<List<AttemptSummary>> GetAttemptsByTestAsync(Guid testId, Guid ownerId);
+
+    // Обновява съществуващ тест (заменя въпросите и категориите). Връща null ако не е намерен.
+    Task<TestListItem?> UpdateTestAsync(Guid testId, CreateTestRequest request, Guid ownerId);
+
+    // Изтрива тест. Връща false ако не е намерен или не е на ownerId.
+    Task<bool> DeleteTestAsync(Guid testId, Guid ownerId);
 }
