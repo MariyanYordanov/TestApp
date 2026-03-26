@@ -8,13 +8,18 @@ frontend/coverage/
 
 # Build output
 frontend/dist/
-backend/bin/
-backend/obj/
+backend/**/bin/
+backend/**/obj/
 
 # ASP.NET Core
-backend/*.user
-backend/*.suo
+backend/**/*.user
+backend/**/*.suo
 backend/.vs/
+
+# SQLite DB files
+backend/**/*.db
+backend/**/*.db-shm
+backend/**/*.db-wal
 
 # .NET
 *.nupkg
