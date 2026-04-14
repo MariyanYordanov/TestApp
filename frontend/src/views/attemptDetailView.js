@@ -54,7 +54,8 @@ function buildPage(detail, testId, attemptId) {
 
     const scoreEl = document.createElement('p');
     scoreEl.className = 'attempt-score-summary';
-    scoreEl.textContent = `${detail.score} / ${detail.totalQuestions} (${detail.percent}%)`;
+    const maxDisplay = detail.maxScore ?? detail.totalQuestions;
+    scoreEl.textContent = `${detail.score} / ${maxDisplay} т. (${detail.percent}%)`;
     header.appendChild(scoreEl);
 
     // AI бутон (само ако има Open/Code въпроси, които не са оценени)

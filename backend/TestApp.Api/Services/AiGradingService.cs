@@ -64,9 +64,24 @@ public class AiGradingService : IAiGradingService
                 .GetProperty("text")
                 .GetString() ?? "";
 
+            // Изчиства markdown code block ако AI го е добавил (```json ... ```)
+            var clean = text.Trim();
+            if (clean.StartsWith("```"))
+            {
+                var start = clean.IndexOf('\n') + 1;
+                var end   = clean.LastIndexOf("```");
+                if (end > start) clean = clean[start..end].Trim();
+            }
+
+            // Извлича JSON обект ако има допълнителен текст около него
+            var braceStart = clean.IndexOf('{');
+            var braceEnd   = clean.LastIndexOf('}');
+            if (braceStart >= 0 && braceEnd > braceStart)
+                clean = clean[braceStart..(braceEnd + 1)];
+
             // Разбира JSON отговора от AI
-            using var resultDoc = JsonDocument.Parse(text.Trim());
-            var score = resultDoc.RootElement.GetProperty("score").GetInt32();
+            using var resultDoc = JsonDocument.Parse(clean);
+            var score    = resultDoc.RootElement.GetProperty("score").GetInt32();
             var feedback = resultDoc.RootElement.GetProperty("feedback").GetString() ?? "";
 
             // Ограничаваме резултата в диапазона [0, maxPoints]
