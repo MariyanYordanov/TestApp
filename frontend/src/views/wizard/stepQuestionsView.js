@@ -263,11 +263,23 @@ export function renderStepQuestions(state, onStateChange, errors = []) {
     const questionsList = document.createElement('div');
     questionsList.className = 'questions-list';
 
+    // Въпроси с празен текст — за inline подчертаване
+    const emptyTextIds = new Set(
+        errors.some(e => e.includes('текстът е задължителен'))
+            ? state.questions.filter(q => !q.text || q.text.trim().length === 0).map(q => q.id)
+            : []
+    );
+
+    let firstErrorCard = null;
+
     state.questions.forEach((question, index) => {
+        const hasTextError = emptyTextIds.has(question.id);
         const card = buildQuestionCard(question, index, {
             onChange: (patch) => onStateChange(applyPatch(state, patch)),
             onRemove: (questionId) => onStateChange(removeQuestion(state, questionId)),
+            hasTextError,
         });
+        if (hasTextError && !firstErrorCard) firstErrorCard = card;
         questionsList.appendChild(card);
     });
 
@@ -281,13 +293,9 @@ export function renderStepQuestions(state, onStateChange, errors = []) {
     addBtn.addEventListener('click', () => onStateChange(addQuestion(state)));
     container.appendChild(addBtn);
 
-    if (errors.length > 0) {
-        errors.forEach(msg => {
-            const errEl = document.createElement('p');
-            errEl.className = 'form-error';
-            errEl.textContent = msg;
-            container.appendChild(errEl);
-        });
+    // Скролира до първия въпрос с грешка след рендиране
+    if (firstErrorCard) {
+        requestAnimationFrame(() => firstErrorCard.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     }
 
     return container;

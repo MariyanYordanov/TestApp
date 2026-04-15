@@ -29,6 +29,8 @@ using (var scope = app.Services.CreateScope())
 
 // Конфигурира HTTP pipeline
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseRouting();
+app.UseCors("FrontendPolicy");
 
 // Сигурносни хедъри
 app.Use(async (context, next) =>
@@ -48,7 +50,6 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseCors("FrontendPolicy");
 if (!app.Environment.IsEnvironment("Testing"))
     app.UseRateLimiter();
 app.UseAuthentication();

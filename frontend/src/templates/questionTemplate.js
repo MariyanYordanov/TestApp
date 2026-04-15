@@ -13,14 +13,14 @@ const QUESTION_TYPES = [
 // ---------------------------------------------------------------------------
 // buildQuestionCard — editable карта за Стъпка 3 (Въпроси)
 // ---------------------------------------------------------------------------
-export function buildQuestionCard(question, index, { onChange, onRemove }) {
+export function buildQuestionCard(question, index, { onChange, onRemove, hasTextError = false }) {
     const qType = question.type ?? 'Closed';
 
     const card = document.createElement('div');
     card.className = 'question-card';
     card.dataset.questionId = question.id;
 
-    card.appendChild(buildQuestionHeader(question, index, qType, { onChange, onRemove }));
+    card.appendChild(buildQuestionHeader(question, index, qType, { onChange, onRemove, hasTextError }));
 
     // Отговорите се показват само за Closed и Multi
     const isOpenLike = qType === 'Open' || qType === 'Code';
@@ -81,7 +81,7 @@ export function buildQuestionCard(question, index, { onChange, onRemove }) {
 }
 
 // Хедър — горен ред (номер + тип + точки + премахни) + textarea за текст
-function buildQuestionHeader(question, index, qType, { onChange, onRemove }) {
+function buildQuestionHeader(question, index, qType, { onChange, onRemove, hasTextError = false }) {
     const header = document.createElement('div');
     header.className = 'question-header';
 
@@ -127,7 +127,7 @@ function buildQuestionHeader(question, index, qType, { onChange, onRemove }) {
     topRow.appendChild(removeBtn);
 
     const textArea = document.createElement('textarea');
-    textArea.className = 'form-input question-text';
+    textArea.className = `form-input question-text${hasTextError ? ' input-error' : ''}`;
     textArea.placeholder = 'Текст на въпроса...';
     textArea.value = question.text;
     textArea.rows = 2;
@@ -139,6 +139,13 @@ function buildQuestionHeader(question, index, qType, { onChange, onRemove }) {
 
     header.appendChild(topRow);
     header.appendChild(textArea);
+
+    if (hasTextError) {
+        const errMsg = document.createElement('p');
+        errMsg.className = 'field-error';
+        errMsg.textContent = 'Текстът на въпроса е задължителен.';
+        header.appendChild(errMsg);
+    }
 
     return header;
 }
