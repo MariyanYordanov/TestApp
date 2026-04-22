@@ -77,7 +77,7 @@ function buildFilters(tests) {
     filters.forEach(f => {
         const count = f.key === 'all'
             ? tests.length
-            : tests.filter(t => t.status === f.key).length;
+            : tests.filter(t => t.status?.toLowerCase() === f.key).length;
 
         const btn = document.createElement('button');
         btn.className = `filter-btn${activeFilter === f.key ? ' active' : ''}`;
@@ -107,7 +107,7 @@ function buildGrid(tests) {
 
     const filtered = activeFilter === 'all'
         ? tests
-        : tests.filter(t => t.status === activeFilter);
+        : tests.filter(t => t.status?.toLowerCase() === activeFilter);
 
     if (filtered.length === 0) {
         const empty = document.createElement('p');

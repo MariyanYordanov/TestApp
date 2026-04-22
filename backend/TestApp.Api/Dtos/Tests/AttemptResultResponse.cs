@@ -4,13 +4,16 @@ namespace TestApp.Api.Dtos.Tests;
 
 public class AttemptResultResponse
 {
-    // Брой верни отговори
+    // Точки спечелени от затворени/multi въпроси
     public int Score { get; set; }
 
-    // Общ брой въпроси
+    // Максимални точки от затворени/multi въпроси
+    public int MaxScore { get; set; }
+
+    // Реален брой въпроси в теста
     public int TotalQuestions { get; set; }
 
-    // Процент верни отговори
+    // Процент спрямо затворените въпроси
     public double Percent { get; set; }
 
     // Детайлни резултати по въпроси
@@ -27,9 +30,12 @@ public class AttemptQuestionResult
     // Текст на въпроса
     public string QuestionText { get; set; } = string.Empty;
 
+    // Тип на въпроса (Closed, Multi, Open, Code)
+    public string QuestionType { get; set; } = string.Empty;
+
     // Идентификатор на избрания отговор
     public Guid? SelectedAnswerId { get; set; }
 
-    // Дали отговорът е верен
-    public bool IsCorrect { get; set; }
+    // Дали отговорът е верен (null = чака AI оценяване)
+    public bool? IsCorrect { get; set; }
 }

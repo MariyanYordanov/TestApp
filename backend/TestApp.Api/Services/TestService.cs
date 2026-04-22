@@ -375,14 +375,18 @@ public class TestService : ITestService
             {
                 var myAnswers = attemptAnswersList.Where(aa => aa.QuestionId == q.Id).ToList();
                 var firstAnswer = myAnswers.FirstOrDefault();
-                bool qIsCorrect = q.Type == "Multi"
-                    ? myAnswers.Any(aa => aa.IsCorrect)   // поне един верен = считаме за верен в резултата
-                    : firstAnswer?.IsCorrect ?? false;
+                bool isOpenLike = q.Type == "Open" || q.Type == "Code";
+                bool? qIsCorrect = isOpenLike
+                    ? null   // чака AI оценяване
+                    : (q.Type == "Multi"
+                        ? myAnswers.Any(aa => aa.IsCorrect)
+                        : firstAnswer?.IsCorrect ?? false);
 
                 return new AttemptQuestionResult
                 {
                     QuestionId = q.Id,
                     QuestionText = q.Text,
+                    QuestionType = q.Type,
                     SelectedAnswerId = firstAnswer?.SelectedAnswerId,
                     IsCorrect = qIsCorrect
                 };
@@ -392,7 +396,8 @@ public class TestService : ITestService
         return new AttemptResultResponse
         {
             Score = score,
-            TotalQuestions = maxScore,
+            MaxScore = maxScore,
+            TotalQuestions = test.Questions.Count,
             Percent = percent,
             Results = questionResultsList
         };
