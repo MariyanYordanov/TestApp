@@ -47,7 +47,10 @@ public class TestService : ITestService
         if (request.Questions == null || request.Questions.Count == 0)
             throw new InvalidOperationException("Тестът трябва да съдържа поне 1 въпрос.");
 
-        // Валидира отговорите само за Closed и Multi въпроси (Open и Code нямат отговори)
+        // Валидира всички въпроси:
+        // - Closed/Multi: трябва да имат отговори с поне 1 верен
+        // - Open/Code: НЕ трябва да имат отговори, но SampleAnswer (примерен отговор)
+        //   се записва и се ползва от AI за сравнение с ученическия отговор
         foreach (var q in request.Questions)
         {
             if (q.Type == "Open" || q.Type == "Code")
@@ -279,7 +282,9 @@ public class TestService : ITestService
                     IsCorrect = false,
                     GradingStatus = GradingStatus.Pending
                 });
-                // Open/Code точките ще се добавят след AI оценяване
+                // Точките на Open/Code се включват в maxScore от началото —
+                // след AI оценяване Score ще се увеличи до правилната стойност
+                maxScore += question.Points;
                 continue;
             }
 
