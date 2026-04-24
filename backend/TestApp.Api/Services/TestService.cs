@@ -668,15 +668,9 @@ public class TestService : ITestService
 
         // Сума на точките от всички въпроси (включително AI-оценените)
         int totalScore = questions.Sum(q => q.PointsEarned);
-        // Максимален резултат = сума от точките на оценяемите въпроси + AI оценени open
-        int maxPossible = questions.Where(q => q.Scorable).Sum(q => q.Points)
-                        + questions.Where(q => !q.Scorable && q.GradingStatus == "Graded").Sum(q => q.Points);
-
-        if (maxPossible == 0)
-        {
-            // Само оценяеми въпроси (без Open/Code) — ползваме пълния maxScore
-            maxPossible = questions.Where(q => q.Scorable).Sum(q => q.Points);
-        }
+        // Максимален резултат = сума от точките на ВСИЧКИ въпроси
+        // (Open/Code се броят дори ако още не са оценени от AI — ще добавят точки след това)
+        int maxPossible = questions.Sum(q => q.Points);
 
         return new AttemptDetailResponse
         {
