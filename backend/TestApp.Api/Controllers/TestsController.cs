@@ -144,6 +144,38 @@ public class TestsController : ControllerBase
         return NoContent();
     }
 
+    // PUT api/tests/{id}/archive — архивира тест (Published/Draft → Archived)
+    [HttpPut("{id:guid}/archive")]
+    [Authorize]
+    public async Task<IActionResult> ArchiveTest(Guid id)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var success = await _testService.ArchiveTestAsync(id, ownerId);
+
+        if (!success)
+            return NotFound(new { error = "Тестът не е намерен." });
+
+        return NoContent();
+    }
+
+    // PUT api/tests/{id}/restore — възстановява архивиран тест към Draft
+    [HttpPut("{id:guid}/restore")]
+    [Authorize]
+    public async Task<IActionResult> RestoreTest(Guid id)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var success = await _testService.RestoreTestAsync(id, ownerId);
+
+        if (!success)
+            return NotFound(new { error = "Тестът не е намерен." });
+
+        return NoContent();
+    }
+
     // POST api/tests/{shareCode}/attempts — предаване на опит (с rate limiting)
     [HttpPost("{shareCode}/attempts")]
     [AllowAnonymous]

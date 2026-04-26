@@ -61,6 +61,8 @@ export async function showTestDetails(ctx) {
 
         // Закачаме event listeners след рендиране
         attachPublishHandler(main, test, ctx);
+        attachArchiveHandler(main, test, ctx);
+        attachRestoreHandler(main, test, ctx);
         attachCopyHandler(main, test.shareCode);
 
     } catch (err) {
@@ -90,6 +92,43 @@ function attachPublishHandler(main, test, ctx) {
         } catch (err) {
             showToast(`Грешка при публикуване: ${err.message}`, 'error');
             publishBtn.disabled = false;
+        }
+    });
+}
+
+// Закача handler за бутон "Архивирай"
+function attachArchiveHandler(main, test, ctx) {
+    const archiveBtn = main.querySelector('.archive-btn');
+    if (!archiveBtn) return;
+
+    archiveBtn.addEventListener('click', async () => {
+        if (!confirm('Сигурни ли сте? Архивираните тестове не са достъпни за ученици.')) return;
+        archiveBtn.disabled = true;
+        try {
+            await testService.archiveTest(test.id);
+            showToast('Тестът е архивиран.', 'success');
+            await showTestDetails(ctx);
+        } catch (err) {
+            showToast(`Грешка при архивиране: ${err.message}`, 'error');
+            archiveBtn.disabled = false;
+        }
+    });
+}
+
+// Закача handler за бутон "Възстанови"
+function attachRestoreHandler(main, test, ctx) {
+    const restoreBtn = main.querySelector('.restore-btn');
+    if (!restoreBtn) return;
+
+    restoreBtn.addEventListener('click', async () => {
+        restoreBtn.disabled = true;
+        try {
+            await testService.restoreTest(test.id);
+            showToast('Тестът е възстановен като чернова.', 'success');
+            await showTestDetails(ctx);
+        } catch (err) {
+            showToast(`Грешка при възстановяване: ${err.message}`, 'error');
+            restoreBtn.disabled = false;
         }
     });
 }

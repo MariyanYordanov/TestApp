@@ -24,6 +24,12 @@ public interface ITestService
     // Публикува тест (Draft → Published). Връща false ако не е намерен или не е на ownerId.
     Task<bool> PublishTestAsync(Guid testId, Guid ownerId);
 
+    // Архивира тест (Draft/Published → Archived). Връща false ако не е намерен или не е на ownerId.
+    Task<bool> ArchiveTestAsync(Guid testId, Guid ownerId);
+
+    // Възстановява архивиран тест (Archived → Draft). Връща false ако не е намерен или не е на ownerId.
+    Task<bool> RestoreTestAsync(Guid testId, Guid ownerId);
+
     // Връща обобщените резултати на опитите за даден тест (само за собственика)
     Task<List<AttemptSummary>> GetAttemptsByTestAsync(Guid testId, Guid ownerId);
 

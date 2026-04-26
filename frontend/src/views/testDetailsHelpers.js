@@ -125,6 +125,22 @@ export function buildSummaryCard(test, attempts) {
         actionsBar.appendChild(publishBtn);
     }
 
+    // Архивиране — налично за Draft и Published
+    if (test.status === 'Draft' || test.status === 'Published') {
+        const archiveBtn = document.createElement('button');
+        archiveBtn.className = 'btn btn-secondary archive-btn';
+        archiveBtn.textContent = 'Архивирай';
+        actionsBar.appendChild(archiveBtn);
+    }
+
+    // Възстановяване — само за Archived
+    if (test.status === 'Archived') {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'btn btn-primary restore-btn';
+        restoreBtn.textContent = 'Възстанови (към Чернова)';
+        actionsBar.appendChild(restoreBtn);
+    }
+
     if (actionsBar.children.length > 0) card.appendChild(actionsBar);
 
     // Ако няма нищо за показване — върни null

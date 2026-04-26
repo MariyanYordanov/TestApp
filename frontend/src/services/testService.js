@@ -71,6 +71,16 @@ export async function publishTest(testId) {
     return api.put(`/tests/${testId}/publish`);
 }
 
+// Архивира тест — Draft/Published → Archived
+export async function archiveTest(testId) {
+    return api.put(`/tests/${testId}/archive`);
+}
+
+// Възстановява архивиран тест към Draft
+export async function restoreTest(testId) {
+    return api.put(`/tests/${testId}/restore`);
+}
+
 // Обновява тест по ID — използва се при edit режим
 // Конвертира durationMinutes → duration преди изпращане
 export async function updateTest(testId, state) {
