@@ -19,6 +19,8 @@ vi.mock('../../services/categoryService.js', () => ({
 vi.mock('../../services/testService.js', () => ({
     createTest: vi.fn(),
     getMyTests: vi.fn(),
+    getFullTest: vi.fn(),
+    updateTest: vi.fn(),
 }));
 
 vi.mock('../../utils/notification.js', () => ({
@@ -46,6 +48,74 @@ const TEST_CATEGORIES = [
 function makeCtx(overrides = {}) {
     return { params: {}, ...overrides };
 }
+
+// ---------------------------------------------------------------------------
+// createInitialState и mapTestToState — тестват се чрез DOM
+// ---------------------------------------------------------------------------
+
+// Тест: createInitialState() трябва да включва durationMinutes: 30
+describe('createTestView — initial state', () => {
+    it('началният state съдържа durationMinutes: 30', async () => {
+        vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue([]);
+        showCreateTest(makeCtx());
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-title'));
+
+        const durationInput = document.getElementById('main').querySelector('#test-duration');
+        expect(durationInput).not.toBeNull();
+        expect(Number(durationInput.value)).toBe(30);
+    });
+});
+
+// Тест: mapTestToState конвертира duration секунди → durationMinutes
+// Проверяваме чрез edit режим (ctx с id)
+describe('createTestView — mapTestToState при edit', () => {
+    beforeEach(() => {
+        // Нулираме DOM между тестовете за да предотвратим state leak
+        document.getElementById('main').replaceChildren();
+        vi.clearAllMocks();
+        categoryService.getCategories.mockResolvedValue([]);
+    });
+
+    it('конвертира duration: 2700 секунди → durationMinutes: 45', async () => {
+        const { getFullTest } = await import('../../services/testService.js');
+        vi.mocked(getFullTest).mockResolvedValue({
+            id: 'test-id',
+            title: 'Тест за edit',
+            description: 'Описание за редактиране',
+            duration: 2700,
+            questions: [],
+            categories: [],
+        });
+
+        showCreateTest(makeCtx({ params: { id: 'test-id' } }));
+        await vi.waitUntil(() => document.getElementById('main').querySelector('#test-duration'));
+
+        const durationInput = document.getElementById('main').querySelector('#test-duration');
+        expect(Number(durationInput.value)).toBe(45);
+    });
+
+    it('конвертира duration: 1800 секунди → durationMinutes: 30', async () => {
+        const { getFullTest } = await import('../../services/testService.js');
+        vi.mocked(getFullTest).mockResolvedValue({
+            id: 'test-id-2',
+            title: 'Тест за edit 2',
+            description: 'Описание за редактиране',
+            duration: 1800,
+            questions: [],
+            categories: [],
+        });
+
+        showCreateTest(makeCtx({ params: { id: 'test-id-2' } }));
+        await vi.waitUntil(() => {
+            const input = document.getElementById('main').querySelector('#test-duration');
+            return input && Number(input.value) === 30;
+        });
+
+        const durationInput = document.getElementById('main').querySelector('#test-duration');
+        expect(Number(durationInput.value)).toBe(30);
+    });
+});
 
 // ---------------------------------------------------------------------------
 // showCreateTest — начален рендер (Стъпка 1)

@@ -219,6 +219,30 @@ describe('renderStepPreview — бутон "Запази като чернова
 });
 
 // ---------------------------------------------------------------------------
+// renderStepPreview — показва продължителността
+// ---------------------------------------------------------------------------
+
+describe('renderStepPreview — продължителност', () => {
+    it('показва "Продължителност: 30 минути" в summary', () => {
+        const state = makeFullState({ durationMinutes: 30 });
+        const el = renderStepPreview(state, vi.fn(), TEST_CATEGORIES);
+        expect(el.textContent).toContain('Продължителност: 30 минути');
+    });
+
+    it('показва "Продължителност: 45 минути" при durationMinutes: 45', () => {
+        const state = makeFullState({ durationMinutes: 45 });
+        const el = renderStepPreview(state, vi.fn(), TEST_CATEGORIES);
+        expect(el.textContent).toContain('Продължителност: 45 минути');
+    });
+
+    it('показва "Продължителност: 1 минути" при durationMinutes: 1', () => {
+        const state = makeFullState({ durationMinutes: 1 });
+        const el = renderStepPreview(state, vi.fn(), TEST_CATEGORIES);
+        expect(el.textContent).toContain('Продължителност: 1 минути');
+    });
+});
+
+// ---------------------------------------------------------------------------
 // renderStepPreview — бутон "Назад"
 // ---------------------------------------------------------------------------
 

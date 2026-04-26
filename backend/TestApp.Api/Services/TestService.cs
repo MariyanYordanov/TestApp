@@ -13,12 +13,14 @@ public class TestService : ITestService
     private readonly AppDbContext _db;
     private readonly IShareCodeGenerator _shareCodeGenerator;
     private readonly IAiGradingService? _aiGrading;
+    private readonly ILogger<TestService>? _logger;
 
-    public TestService(AppDbContext db, IShareCodeGenerator shareCodeGenerator, IAiGradingService? aiGrading = null)
+    public TestService(AppDbContext db, IShareCodeGenerator shareCodeGenerator, IAiGradingService? aiGrading = null, ILogger<TestService>? logger = null)
     {
         _db = db;
         _shareCodeGenerator = shareCodeGenerator;
         _aiGrading = aiGrading;
+        _logger = logger;
     }
 
     // Връща всички тестове на конкретен собственик
@@ -43,6 +45,10 @@ public class TestService : ITestService
     // Създава нов тест с въпроси и категории
     public async Task<TestListItem> CreateTestAsync(CreateTestRequest request, Guid ownerId)
     {
+        // Валидира продължителността (мин 60 сек = 1 мин, макс 28800 сек = 480 мин)
+        if (request.Duration < 60 || request.Duration > 28800)
+            throw new InvalidOperationException("Продължителността трябва да е между 1 и 480 минути.");
+
         // Валидира броя въпроси
         if (request.Questions == null || request.Questions.Count == 0)
             throw new InvalidOperationException("Тестът трябва да съдържа поне 1 въпрос.");
@@ -420,6 +426,10 @@ public class TestService : ITestService
 
         if (test is null) return null;
 
+        // Валидира продължителността (мин 60 сек = 1 мин, макс 28800 сек = 480 мин)
+        if (request.Duration < 60 || request.Duration > 28800)
+            throw new InvalidOperationException("Продължителността трябва да е между 1 и 480 минути.");
+
         // Валидира въпросите (същите правила като при създаване)
         if (request.Questions == null || request.Questions.Count == 0)
             throw new InvalidOperationException("Тестът трябва да съдържа поне 1 въпрос.");
@@ -718,8 +728,10 @@ public class TestService : ITestService
 
         if (attempt is null) return false;
 
+        // Включва и Failed — за да може да се ретрайне след грешка от AI
         var pendingAnswers = attempt.AttemptAnswers
-            .Where(aa => aa.GradingStatus == GradingStatus.Pending)
+            .Where(aa => aa.GradingStatus == GradingStatus.Pending
+                      || aa.GradingStatus == GradingStatus.Failed)
             .ToList();
 
         if (_aiGrading is null)
@@ -750,10 +762,11 @@ public class TestService : ITestService
                 aa.IsCorrect = aiScore > 0;
                 aa.GradedAt = DateTime.UtcNow;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError(ex, "AI grading failed for question {QuestionId}: {Message}", aa.QuestionId, ex.Message);
                 aa.GradingStatus = GradingStatus.Failed;
-                aa.AiFeedback = "Грешка при автоматична проверка.";
+                aa.AiFeedback = $"Грешка при автоматична проверка: {ex.Message}";
             }
         }
 

@@ -29,6 +29,7 @@ backend/**/*.db-wal
 .env
 .env.local
 .env.*.local
+backend/TestApp.Api/appsettings.Development.json
 
 # OS файлове
 .DS_Store

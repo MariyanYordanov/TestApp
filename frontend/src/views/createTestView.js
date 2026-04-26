@@ -6,6 +6,7 @@
 
 import page from '../../lib/page.min.js';
 import { renderStepTitle, validateStep1 } from './wizard/stepTitleView.js';
+import { DURATION_DEFAULT_MINUTES } from '../config.js';
 import { renderStepCategories, validateStep2 } from './wizard/stepCategoriesView.js';
 import { renderStepQuestions, validateStep3 } from './wizard/stepQuestionsView.js';
 import { renderStepPreview } from './wizard/stepPreviewView.js';
@@ -22,6 +23,7 @@ function createInitialState() {
         currentStep: 0,
         title: '',
         description: '',
+        durationMinutes: DURATION_DEFAULT_MINUTES,
         categoryIds: [],
         questions: [],
     };
@@ -33,6 +35,7 @@ function mapTestToState(test) {
         currentStep: 0,
         title: test.title ?? '',
         description: test.description ?? '',
+        durationMinutes: Math.max(1, Math.round((test.duration ?? 1800) / 60)),
         categoryIds: Array.isArray(test.categories)
             ? test.categories.map(c => c.id)
             : (test.categoryIds ?? []),

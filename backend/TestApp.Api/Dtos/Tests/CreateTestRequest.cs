@@ -13,7 +13,8 @@ public class CreateTestRequest
     // Описание на теста
     public string Description { get; set; } = string.Empty;
 
-    // Продължителност в секунди (по подразбиране 30 минути)
+    // Продължителност в секунди (по подразбиране 30 минути, мин 60 сек = 1 мин, макс 28800 сек = 480 мин)
+    [Range(60, 28800, ErrorMessage = "Продължителността трябва да е между 1 и 480 минути.")]
     public int Duration { get; set; } = 1800;
 
     // Идентификатори на категории
@@ -40,7 +41,7 @@ public class CreateQuestionDto
     public int Points { get; set; } = 1;
 
     // Примерен отговор (само за Open и Code въпроси, незадължителен, макс 50000 символа)
-    [MaxLength(50000)]
+    [MaxLength(50000, ErrorMessage = "Примерният отговор трябва да бъде между 0 и 50000 символа.")]
     public string? SampleAnswer { get; set; }
 
     // Отговори към въпроса (за Open тип — празен масив)

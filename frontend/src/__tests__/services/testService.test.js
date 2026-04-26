@@ -68,13 +68,19 @@ describe('testService — getMyTests()', () => {
 // createTest
 // ---------------------------------------------------------------------------
 describe('testService — createTest()', () => {
-    it('извиква api.post с /tests и данните за теста', async () => {
-        const testData = { title: 'Нов тест', description: 'Описание' };
-        api.post.mockResolvedValueOnce({ id: 'uuid-3', ...testData });
+    it('извиква api.post с /tests и трансформиран payload (без durationMinutes)', async () => {
+        // createTest конвертира durationMinutes → duration (секунди)
+        const testData = { title: 'Нов тест', description: 'Описание', durationMinutes: 30 };
+        api.post.mockResolvedValueOnce({ id: 'uuid-3', title: 'Нов тест' });
 
         await createTest(testData);
 
-        expect(api.post).toHaveBeenCalledWith('/tests', testData);
+        // Проверяваме само URL-а и наличието на duration (не durationMinutes) в payload
+        expect(api.post.mock.calls[0][0]).toBe('/tests');
+        const postedPayload = api.post.mock.calls[0][1];
+        expect(postedPayload.title).toBe('Нов тест');
+        expect(postedPayload.duration).toBe(1800);
+        expect(Object.keys(postedPayload)).not.toContain('durationMinutes');
     });
 
     it('връща създадения тест', async () => {
@@ -91,6 +97,92 @@ describe('testService — createTest()', () => {
         api.post.mockRejectedValueOnce(new Error('Невалидни данни'));
 
         await expect(createTest({ title: '' })).rejects.toThrow('Невалидни данни');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// createTest — конвертира durationMinutes → duration (секунди)
+// ---------------------------------------------------------------------------
+
+describe('testService — createTest() durationMinutes → duration конвертиране', () => {
+    it('конвертира durationMinutes: 45 → duration: 2700 в payload', async () => {
+        api.post.mockResolvedValueOnce({ id: 'uuid-new' });
+
+        await createTest({ durationMinutes: 45, title: 'Тест', questions: [] });
+
+        const postedPayload = api.post.mock.calls[0][1];
+        expect(postedPayload.duration).toBe(2700);
+    });
+
+    it('payload НЕ съдържа ключ durationMinutes', async () => {
+        api.post.mockResolvedValueOnce({ id: 'uuid-new' });
+
+        await createTest({ durationMinutes: 30, title: 'Тест', questions: [] });
+
+        const postedPayload = api.post.mock.calls[0][1];
+        expect(Object.keys(postedPayload)).not.toContain('durationMinutes');
+    });
+
+    it('конвертира durationMinutes: 1 → duration: 60', async () => {
+        api.post.mockResolvedValueOnce({ id: 'uuid-new' });
+
+        await createTest({ durationMinutes: 1, title: 'Тест', questions: [] });
+
+        const postedPayload = api.post.mock.calls[0][1];
+        expect(postedPayload.duration).toBe(60);
+    });
+
+    it('конвертира durationMinutes: 480 → duration: 28800', async () => {
+        api.post.mockResolvedValueOnce({ id: 'uuid-new' });
+
+        await createTest({ durationMinutes: 480, title: 'Тест', questions: [] });
+
+        const postedPayload = api.post.mock.calls[0][1];
+        expect(postedPayload.duration).toBe(28800);
+    });
+
+    it('запазва останалите полета непроменени', async () => {
+        api.post.mockResolvedValueOnce({ id: 'uuid-new' });
+        const state = {
+            durationMinutes: 30,
+            title: 'Моят тест',
+            description: 'Описание',
+            categoryIds: ['cat-1'],
+            questions: [{ text: 'Въпрос?', answers: [] }],
+        };
+
+        await createTest(state);
+
+        const postedPayload = api.post.mock.calls[0][1];
+        expect(postedPayload.title).toBe('Моят тест');
+        expect(postedPayload.description).toBe('Описание');
+        expect(postedPayload.categoryIds).toEqual(['cat-1']);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// updateTest — конвертира durationMinutes → duration (секунди)
+// ---------------------------------------------------------------------------
+
+describe('testService — updateTest() durationMinutes → duration конвертиране', () => {
+    it('конвертира durationMinutes: 45 → duration: 2700 в payload', async () => {
+        const { updateTest } = await import('../../services/testService.js');
+        api.put.mockResolvedValueOnce({ id: 'uuid-existing' });
+
+        await updateTest('uuid-existing', { durationMinutes: 45, title: 'Тест' });
+
+        const postedPayload = api.put.mock.calls[0][1];
+        expect(postedPayload.duration).toBe(2700);
+    });
+
+    it('payload НЕ съдържа ключ durationMinutes при updateTest', async () => {
+        const { updateTest } = await import('../../services/testService.js');
+        api.put.mockResolvedValueOnce({ id: 'uuid-existing' });
+
+        await updateTest('uuid-existing', { durationMinutes: 30, title: 'Тест' });
+
+        const postedPayload = api.put.mock.calls[0][1];
+        expect(Object.keys(postedPayload)).not.toContain('durationMinutes');
     });
 });
 

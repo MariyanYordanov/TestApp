@@ -63,10 +63,16 @@ function buildSummarySection(state, categories) {
     meta.className = 'preview-meta';
     meta.textContent = `Въпроси: ${state.questions.length}`;
 
+    // Продължителност в минути
+    const durationEl = document.createElement('p');
+    durationEl.className = 'preview-duration';
+    durationEl.textContent = `Продължителност: ${state.durationMinutes ?? 30} минути`;
+
     section.appendChild(title);
     section.appendChild(description);
     section.appendChild(categoriesEl);
     section.appendChild(meta);
+    section.appendChild(durationEl);
 
     return section;
 }

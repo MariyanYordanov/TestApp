@@ -1,11 +1,17 @@
 // Стъпка 12 — stepTitleView.js
-// Стъпка 1 от wizard-а: заглавие и описание на теста.
+// Стъпка 1 от wizard-а: заглавие, описание и продължителност на теста.
 // Само createElement/textContent — без innerHTML за потребителски данни.
+
+import {
+    DURATION_DEFAULT_MINUTES,
+    DURATION_MIN_MINUTES,
+    DURATION_MAX_MINUTES,
+} from '../../config.js';
 
 // ---------------------------------------------------------------------------
 // validateStep1 — валидиране на Стъпка 1
 //
-// @param {object} state — wizard state с полета title и description
+// @param {object} state — wizard state с полета title, description, durationMinutes
 // @returns {{ valid: boolean, errors: string[] }}
 // ---------------------------------------------------------------------------
 export function validateStep1(state) {
@@ -21,6 +27,24 @@ export function validateStep1(state) {
         errors.push('Описанието е задължително.');
     } else if (state.description.trim().length < 10) {
         errors.push('Описанието трябва да е поне 10 символа.');
+    }
+
+    // Валидира продължителността само ако е изрично зададена в state.
+    // undefined означава "не е въведено" — ще се ползва default стойността.
+    if ('durationMinutes' in state) {
+        const dur = state.durationMinutes;
+        const durNum = Number(dur);
+        const isInvalid =
+            dur === '' ||
+            dur === null ||
+            Number.isNaN(durNum) ||
+            !Number.isInteger(durNum) ||
+            durNum < DURATION_MIN_MINUTES ||
+            durNum > DURATION_MAX_MINUTES;
+
+        if (isInvalid) {
+            errors.push(`Продължителността трябва да е цяло число между ${DURATION_MIN_MINUTES} и ${DURATION_MAX_MINUTES} минути.`);
+        }
     }
 
     return { valid: errors.length === 0, errors };
@@ -64,6 +88,9 @@ export function renderStepTitle(state, onStateChange, errors = []) {
         onInput: (val) => onStateChange({ ...state, description: val }),
     }));
 
+    // --- Поле: Продължителност в минути ---
+    container.appendChild(buildDurationField(state, onStateChange));
+
     // --- Грешки ---
     if (errors.length > 0) {
         errors.forEach(msg => {
@@ -75,6 +102,36 @@ export function renderStepTitle(state, onStateChange, errors = []) {
     }
 
     return container;
+}
+
+// Строи поле за продължителност (number input)
+function buildDurationField(state, onStateChange) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-group';
+
+    const labelEl = document.createElement('label');
+    labelEl.htmlFor = 'test-duration';
+    labelEl.textContent = `Продължителност (минути, ${DURATION_MIN_MINUTES}–${DURATION_MAX_MINUTES})`;
+
+    const inputEl = document.createElement('input');
+    inputEl.id = 'test-duration';
+    inputEl.className = 'form-input';
+    inputEl.type = 'number';
+    inputEl.min = String(DURATION_MIN_MINUTES);
+    inputEl.max = String(DURATION_MAX_MINUTES);
+    inputEl.step = '1';
+    inputEl.value = String(state.durationMinutes ?? DURATION_DEFAULT_MINUTES);
+
+    inputEl.addEventListener('input', () => {
+        // Конвертира стойността към число (parseInt за да не се допускат дробни)
+        const parsed = parseInt(inputEl.value, 10);
+        onStateChange({ ...state, durationMinutes: isNaN(parsed) ? '' : parsed });
+    });
+
+    wrapper.appendChild(labelEl);
+    wrapper.appendChild(inputEl);
+
+    return wrapper;
 }
 
 // Помощна функция — строи label + input/textarea двойка

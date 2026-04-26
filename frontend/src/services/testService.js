@@ -4,15 +4,34 @@
 //
 // Публични функции:
 //   getMyTests()                       — зарежда тестовете на учителя
-//   createTest(testData)               — създава нов тест
+//   createTest(state)                  — създава нов тест (state → API payload)
 //   getFullTest(testId)                — зарежда пълен тест с въпроси (за учителя)
 //   getPublicTest(shareCode)           — зарежда публична информация за тест (за ученика)
 //   submitAttempt(shareCode, payload)  — изпраща отговорите на ученика
 //   getAttempts(testId)                — зарежда опитите за конкретен тест
 //   publishTest(testId)                — публикува чернова (Draft → Published)
+//   updateTest(testId, state)          — обновява тест (state → API payload)
 //   deleteTest(testId)                 — изтрива тест
 
 import { api } from './api.js';
+
+// ---------------------------------------------------------------------------
+// toApiPayload — конвертира wizard state към API payload
+//
+// Трансформации:
+//   durationMinutes (минути) → duration (секунди, minutes × 60)
+//   премахва durationMinutes от payload
+//
+// @param {object} state — wizard state
+// @returns {object} — payload готов за изпращане към backend
+// ---------------------------------------------------------------------------
+export function toApiPayload(state) {
+    const { durationMinutes, ...rest } = state;
+    return {
+        ...rest,
+        duration: (durationMinutes ?? 30) * 60,
+    };
+}
 
 // Връща списъка с тестове на влезлия учител
 export async function getMyTests() {
@@ -20,8 +39,9 @@ export async function getMyTests() {
 }
 
 // Създава нов тест и връща резултата от сървъра
-export async function createTest(testData) {
-    return api.post('/tests', testData);
+// Конвертира durationMinutes → duration преди изпращане
+export async function createTest(state) {
+    return api.post('/tests', toApiPayload(state));
 }
 
 // Зарежда пълния тест (включително въпроси и отговори) по ID
@@ -52,8 +72,9 @@ export async function publishTest(testId) {
 }
 
 // Обновява тест по ID — използва се при edit режим
-export async function updateTest(testId, testData) {
-    return api.put(`/tests/${testId}`, testData);
+// Конвертира durationMinutes → duration преди изпращане
+export async function updateTest(testId, state) {
+    return api.put(`/tests/${testId}`, toApiPayload(state));
 }
 
 // Изтрива тест по ID — връща null при успех

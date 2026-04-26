@@ -293,6 +293,16 @@ export function renderStepQuestions(state, onStateChange, errors = []) {
     addBtn.addEventListener('click', () => onStateChange(addQuestion(state)));
     container.appendChild(addBtn);
 
+    // Показва общи грешки (напр. "Добавете поне 1 въпрос") под бутона за добавяне
+    if (errors.length > 0) {
+        errors.forEach(msg => {
+            const errEl = document.createElement('p');
+            errEl.className = 'form-error';
+            errEl.textContent = msg;
+            container.appendChild(errEl);
+        });
+    }
+
     // Скролира до първия въпрос с грешка след рендиране
     if (firstErrorCard) {
         requestAnimationFrame(() => firstErrorCard.scrollIntoView({ behavior: 'smooth', block: 'center' }));

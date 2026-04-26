@@ -63,6 +63,61 @@ describe('validateStep1 — валидация на заглавие и опис
 });
 
 // ---------------------------------------------------------------------------
+// validateStep1 — durationMinutes валидация
+// ---------------------------------------------------------------------------
+
+describe('validateStep1 — durationMinutes валидация', () => {
+    const validBase = { title: 'Тест за JS', description: 'Описание поне десет символа' };
+
+    it('грешка при durationMinutes: 0', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: 0 });
+        expect(result.valid).toBe(false);
+        expect(result.errors.some(e => e.toLowerCase().includes('продълж'))).toBe(true);
+    });
+
+    it('грешка при отрицателна durationMinutes', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: -5 });
+        expect(result.valid).toBe(false);
+    });
+
+    it('грешка при durationMinutes: NaN', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: NaN });
+        expect(result.valid).toBe(false);
+    });
+
+    it('грешка при durationMinutes: "" (празен стринг)', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: '' });
+        expect(result.valid).toBe(false);
+    });
+
+    it('валидно при durationMinutes: 1 (минимум)', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: 1 });
+        expect(result.valid).toBe(true);
+    });
+
+    it('валидно при durationMinutes: 30 (по подразбиране)', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: 30 });
+        expect(result.valid).toBe(true);
+    });
+
+    it('валидно при durationMinutes: 480 (максимум)', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: 480 });
+        expect(result.valid).toBe(true);
+    });
+
+    it('грешка при durationMinutes: 481 (над максимум)', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: 481 });
+        expect(result.valid).toBe(false);
+        expect(result.errors.some(e => e.toLowerCase().includes('продълж'))).toBe(true);
+    });
+
+    it('грешка при дробна durationMinutes: 1.5 (не е цяло число)', () => {
+        const result = validateStep1({ ...validBase, durationMinutes: 1.5 });
+        expect(result.valid).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
 // renderStepTitle — DOM рендиране
 // ---------------------------------------------------------------------------
 
@@ -99,6 +154,71 @@ describe('renderStepTitle — структура', () => {
         const el = renderStepTitle(state, vi.fn());
         const textarea = el.querySelector('#test-description');
         expect(textarea.value).toBe('Моето описание тук');
+    });
+});
+
+describe('renderStepTitle — поле за продължителност', () => {
+    it('рендира input с id="test-duration"', () => {
+        const state = { title: '', description: '', durationMinutes: 30 };
+        const el = renderStepTitle(state, vi.fn());
+        const input = el.querySelector('#test-duration');
+        expect(input).not.toBeNull();
+    });
+
+    it('input има type="number"', () => {
+        const state = { title: '', description: '', durationMinutes: 30 };
+        const el = renderStepTitle(state, vi.fn());
+        const input = el.querySelector('#test-duration');
+        expect(input.type).toBe('number');
+    });
+
+    it('input има min="1"', () => {
+        const state = { title: '', description: '', durationMinutes: 30 };
+        const el = renderStepTitle(state, vi.fn());
+        const input = el.querySelector('#test-duration');
+        expect(input.min).toBe('1');
+    });
+
+    it('input има max="480"', () => {
+        const state = { title: '', description: '', durationMinutes: 30 };
+        const el = renderStepTitle(state, vi.fn());
+        const input = el.querySelector('#test-duration');
+        expect(input.max).toBe('480');
+    });
+
+    it('попълва стойността на durationMinutes от state', () => {
+        const state = { title: '', description: '', durationMinutes: 45 };
+        const el = renderStepTitle(state, vi.fn());
+        const input = el.querySelector('#test-duration');
+        expect(Number(input.value)).toBe(45);
+    });
+
+    it('по подразбиране стойността е 30', () => {
+        const state = { title: '', description: '', durationMinutes: 30 };
+        const el = renderStepTitle(state, vi.fn());
+        const input = el.querySelector('#test-duration');
+        expect(Number(input.value)).toBe(30);
+    });
+
+    it('промяна на input извиква onStateChange с новата durationMinutes', () => {
+        const onStateChange = vi.fn();
+        const state = { title: '', description: '', durationMinutes: 30 };
+        const el = renderStepTitle(state, onStateChange);
+        const input = el.querySelector('#test-duration');
+        input.value = '45';
+        input.dispatchEvent(new Event('input'));
+        const newState = onStateChange.mock.calls[0][0];
+        expect(newState.durationMinutes).toBe(45);
+    });
+
+    it('промяна не мутира оригиналния state', () => {
+        const onStateChange = vi.fn();
+        const state = { title: '', description: '', durationMinutes: 30 };
+        const el = renderStepTitle(state, onStateChange);
+        const input = el.querySelector('#test-duration');
+        input.value = '60';
+        input.dispatchEvent(new Event('input'));
+        expect(state.durationMinutes).toBe(30);
     });
 });
 
