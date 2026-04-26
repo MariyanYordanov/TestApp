@@ -66,12 +66,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IShareCodeGenerator, ShareCodeGenerator>();
         services.AddScoped<ICategoryService, CategoryService>();
 
-        // Регистрира AI оценяващата услуга (само ако е конфигурирано API Key)
-        var anthropicKey = config["Anthropic:ApiKey"];
-        if (!string.IsNullOrEmpty(anthropicKey))
+        // Регистрира AI оценяващата услуга според конфигурирания provider
+        // Default е Groq; ако няма наличен ключ — не регистрираме (TestService ще маркира Failed)
+        var provider = config["AiGrading:Provider"] ?? "Groq";
+        if (provider == "Groq" && !string.IsNullOrEmpty(config["Groq:ApiKey"]))
         {
-            services.AddHttpClient<IAiGradingService, AiGradingService>();
+            services.AddHttpClient<IAiGradingService, GroqGradingService>();
         }
+        else if (provider == "Anthropic" && !string.IsNullOrEmpty(config["Anthropic:ApiKey"]))
+        {
+            services.AddHttpClient<IAiGradingService, AnthropicGradingService>();
+        }
+        // else: не регистрираме нищо — TestService.GradeAttemptAsync ще маркира Failed
 
         // Конфигурира CORS политика
         services.AddCors(options =>

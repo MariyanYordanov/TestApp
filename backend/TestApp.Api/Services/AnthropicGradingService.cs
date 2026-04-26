@@ -3,13 +3,13 @@ using System.Text.Json;
 
 namespace TestApp.Api.Services;
 
-public class AiGradingService : IAiGradingService
+public class AnthropicGradingService : IAiGradingService
 {
     private readonly HttpClient _http;
     private readonly string _apiKey;
-    private readonly ILogger<AiGradingService> _logger;
+    private readonly ILogger<AnthropicGradingService> _logger;
 
-    public AiGradingService(HttpClient http, IConfiguration config, ILogger<AiGradingService> logger)
+    public AnthropicGradingService(HttpClient http, IConfiguration config, ILogger<AnthropicGradingService> logger)
     {
         _http = http;
         _apiKey = config["Anthropic:ApiKey"] ?? throw new InvalidOperationException("Anthropic:ApiKey not configured");
@@ -20,21 +20,8 @@ public class AiGradingService : IAiGradingService
         string questionText, string? sampleAnswer, string studentAnswer, string questionType,
         int maxPoints = 1)
     {
-        var systemPrompt = questionType == "Code"
-            ? "You are a programming instructor grading a student's code answer. Be concise and fair."
-            : "You are a teacher grading a student's open-ended answer. Be concise and fair.";
-
-        var sampleAnswerLine = sampleAnswer != null
-            ? $"Expected/Sample answer: {sampleAnswer}"
-            : "";
-
-        // Подкана с конкретния максимален брой точки
-        var scoreJsonFormat = $"{{\"score\": integer 0 to {maxPoints}, \"feedback\": \"brief explanation in the same language as the question\"}}";
-        var userPrompt = $"Grade this student answer. Respond with JSON only: {scoreJsonFormat}\n\n" +
-                         $"Question: {questionText}\n" +
-                         (string.IsNullOrEmpty(sampleAnswerLine) ? "" : sampleAnswerLine + "\n") +
-                         $"Student's answer: {studentAnswer}\n\n" +
-                         $"Score {maxPoints} for an excellent complete answer, score 0 for completely wrong or missing.";
+        var systemPrompt = AiResponseParser.BuildSystemPrompt(questionType);
+        var userPrompt   = AiResponseParser.BuildUserPrompt(questionText, sampleAnswer, studentAnswer, maxPoints);
 
         var requestBody = new
         {
@@ -64,20 +51,8 @@ public class AiGradingService : IAiGradingService
                 .GetProperty("text")
                 .GetString() ?? "";
 
-            // Изчиства markdown code block ако AI го е добавил (```json ... ```)
-            var clean = text.Trim();
-            if (clean.StartsWith("```"))
-            {
-                var start = clean.IndexOf('\n') + 1;
-                var end   = clean.LastIndexOf("```");
-                if (end > start) clean = clean[start..end].Trim();
-            }
-
-            // Извлича JSON обект ако има допълнителен текст около него
-            var braceStart = clean.IndexOf('{');
-            var braceEnd   = clean.LastIndexOf('}');
-            if (braceStart >= 0 && braceEnd > braceStart)
-                clean = clean[braceStart..(braceEnd + 1)];
+            // Изчиства markdown/brace артефакти и извлича чист JSON
+            var clean = AiResponseParser.CleanJson(text);
 
             // Разбира JSON отговора от AI
             using var resultDoc = JsonDocument.Parse(clean);
