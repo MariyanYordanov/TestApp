@@ -318,7 +318,7 @@ describe('statisticsView — void бутон в таблица с опити', (
         if (!voidBtn) return;
 
         voidBtn.click();
-        await flushPromises();
+        await new Promise(resolve => setTimeout(resolve, 0));
         expect(testService.voidAttempt).toHaveBeenCalled();
     });
 });

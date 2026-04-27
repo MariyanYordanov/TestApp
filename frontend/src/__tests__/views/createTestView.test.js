@@ -21,6 +21,7 @@ vi.mock('../../services/testService.js', () => ({
     getMyTests: vi.fn(),
     getFullTest: vi.fn(),
     updateTest: vi.fn(),
+    getClasses: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../utils/notification.js', () => ({
@@ -442,6 +443,7 @@ describe('createTestView — категории от API', () => {
 
     it('при грешка при зареждане на категории показва 0 checkboxes на Стъпка 2', async () => {
         vi.resetAllMocks();
+        testService.getClasses.mockResolvedValue([]);
         categoryService.getCategories.mockRejectedValue(new Error('Мрежова грешка'));
         document.getElementById('main').replaceChildren();
         showCreateTest(makeCtx());
@@ -462,6 +464,7 @@ describe('createTestView — категории от API', () => {
 
     it('при грешка при зареждане на категории показва toast с грешка', async () => {
         vi.resetAllMocks();
+        testService.getClasses.mockResolvedValue([]);
         categoryService.getCategories.mockRejectedValue(new Error('Мрежова грешка'));
         document.getElementById('main').replaceChildren();
         showCreateTest(makeCtx());
@@ -506,6 +509,7 @@ describe('createTestView — запазване чрез testService', () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
+        testService.getClasses.mockResolvedValue([]);
         categoryService.getCategories.mockResolvedValue(TEST_CATEGORIES);
         testService.createTest.mockResolvedValue({ id: 'new-test-id' });
         showCreateTest(makeCtx());
