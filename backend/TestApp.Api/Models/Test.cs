@@ -40,6 +40,12 @@ public class Test
     // Категории на теста (много-към-много)
     public List<TestCategory> TestCategories { get; set; } = new();
 
+    // Целеви клас (информативно, показва се на ученика) — необязателно
+    public string? TargetClass { get; set; }
+
+    // Изисква email gate (opt-in) — само ученици от students.json могат да решават
+    public bool RequireEmailGate { get; set; } = false;
+
     // Опити за решаване на теста
     public List<Attempt> Attempts { get; set; } = new();
 }

@@ -17,6 +17,13 @@ public class CreateTestRequest
     [Range(60, 28800, ErrorMessage = "Продължителността трябва да е между 1 и 480 минути.")]
     public int Duration { get; set; } = 1800;
 
+    // Целеви клас (информативно поле, показва се на ученика — необязателно)
+    [MaxLength(50, ErrorMessage = "Класът не може да е по-дълъг от 50 символа.")]
+    public string? TargetClass { get; set; }
+
+    // Изисква email gate — само ученици от students.json могат да решават
+    public bool RequireEmailGate { get; set; } = false;
+
     // Идентификатори на категории
     public List<string> CategoryIds { get; set; } = new();
 

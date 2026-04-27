@@ -6,19 +6,19 @@
 import page from '../../lib/page.min.js';
 
 // Lazy imports — всеки view се зарежда само когато е нужен
-import { showHome }        from '../views/homeView.js';
-import { showLogin }       from '../views/loginView.js';
-import { showRegister }    from '../views/registerView.js';
-import { showDashboard }   from '../views/dashboardView.js';
-import { showCreateTest }  from '../views/createTestView.js';
-import { showTestDetails } from '../views/testDetailsView.js';
-import { showCategories }  from '../views/categoriesView.js';
-import { showStatistics }  from '../views/statisticsView.js';
-import { showAccount }     from '../views/accountView.js';
+import { showHome }          from '../views/homeView.js';
+import { showLogin }         from '../views/loginView.js';
+import { showRegister }      from '../views/registerView.js';
+import { showDashboard }     from '../views/dashboardView.js';
+import { showCreateTest }    from '../views/createTestView.js';
+import { showTestDetails }   from '../views/testDetailsView.js';
+import { showCategories }    from '../views/categoriesView.js';
+import { showStatistics }    from '../views/statisticsView.js';
+import { showAccount }       from '../views/accountView.js';
 import { showAttemptDetail } from '../views/attemptDetailView.js';
-import { showTestEntry }   from '../views/participant/testEntryView.js';
-import { showTestTaking }  from '../views/participant/testTakingView.js';
-import { isAuthenticated } from '../services/auth.js';
+import { showTestEntry }     from '../views/participant/testEntryView.js';
+import { showTestTaking }    from '../views/participant/testTakingView.js';
+import { isAuthenticated }   from '../services/auth.js';
 
 // Middleware — пренасочва към /login ако учителят не е влязъл
 export function authGuard(_ctx, next) {

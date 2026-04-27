@@ -25,6 +25,12 @@ public class Attempt
     // Навигационно свойство към теста
     public Test Test { get; set; } = null!;
 
+    // Имейл на участника (само при email gate тестове, нормализиран lowercase)
+    public string? ParticipantEmail { get; set; }
+
+    // Дали опитът е анулиран от учителя (позволява повторно решаване)
+    public bool IsVoided { get; set; } = false;
+
     // Отговори на участника
     public List<AttemptAnswer> AttemptAnswers { get; set; } = new();
 }

@@ -66,6 +66,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IShareCodeGenerator, ShareCodeGenerator>();
         services.AddScoped<ICategoryService, CategoryService>();
 
+        // Регистрира StudentDirectoryService като singleton с FileSystemWatcher
+        // Пътят до students.json е конфигурируем — по подразбиране до Data/students.json
+        var studentsJsonPath = config["StudentDirectory:Path"]
+            ?? Path.Combine(AppContext.BaseDirectory, "Data", "students.json");
+        services.AddSingleton<IStudentDirectoryService>(sp =>
+        {
+            var logger = sp.GetService<ILogger<StudentDirectoryService>>();
+            return new StudentDirectoryService(studentsJsonPath, logger);
+        });
+
         // Регистрира AI оценяващата услуга според конфигурирания provider
         // Default е Groq; ако няма наличен ключ — не регистрираме (TestService ще маркира Failed)
         var provider = config["AiGrading:Provider"] ?? "Groq";

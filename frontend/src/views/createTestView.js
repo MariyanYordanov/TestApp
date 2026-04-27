@@ -24,6 +24,8 @@ function createInitialState() {
         title: '',
         description: '',
         durationMinutes: DURATION_DEFAULT_MINUTES,
+        targetClass: null,
+        requireEmailGate: false,
         categoryIds: [],
         questions: [],
     };
@@ -36,6 +38,8 @@ function mapTestToState(test) {
         title: test.title ?? '',
         description: test.description ?? '',
         durationMinutes: Math.max(1, Math.round((test.duration ?? 1800) / 60)),
+        targetClass: test.targetClass ?? null,
+        requireEmailGate: test.requireEmailGate ?? false,
         categoryIds: Array.isArray(test.categories)
             ? test.categories.map(c => c.id)
             : (test.categoryIds ?? []),
@@ -115,8 +119,9 @@ export async function showCreateTest(ctx) {
     const main = document.getElementById('main');
     main.className = '';
 
-    // Зареждаме категориите и (при edit) съществуващия тест
+    // Зареждаме категориите, класовете и (при edit) съществуващия тест
     let categories = [];
+    let classes = [];
     let existingTest = null;
 
     const loadCategories = categoryService.getCategories()
@@ -126,6 +131,10 @@ export async function showCreateTest(ctx) {
             showToast('Категориите не могат да бъдат заредени.', 'error');
         });
 
+    const loadClasses = testService.getClasses()
+        .then(r => { classes = r ?? []; })
+        .catch(() => { classes = []; }); // fail-open — директорията може да не е налична
+
     const loadTest = editId
         ? testService.getFullTest(editId)
             .then(t => { existingTest = t; })
@@ -134,7 +143,7 @@ export async function showCreateTest(ctx) {
             })
         : Promise.resolve();
 
-    await Promise.all([loadCategories, loadTest]);
+    await Promise.all([loadCategories, loadClasses, loadTest]);
 
     let state = existingTest
         ? mapTestToState(existingTest)
@@ -143,7 +152,7 @@ export async function showCreateTest(ctx) {
     function render(errors = []) {
         const focus = saveFocus();
         main.replaceChildren(
-            buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories, editId)
+            buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories, editId, classes)
         );
         restoreFocus(focus);
     }
@@ -188,13 +197,13 @@ function validateCurrentStep(state) {
 // ---------------------------------------------------------------------------
 // buildWizardLayout — строи целия wizard layout
 // ---------------------------------------------------------------------------
-function buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories, editId) {
+function buildWizardLayout(state, errors, onStateChange, onNext, onBack, categories, editId, classes = []) {
     const wrapper = document.createElement('div');
     wrapper.className = 'wizard-wrapper';
 
     wrapper.appendChild(buildStepper(state.currentStep));
 
-    const stepContent = buildStepContent(state, errors, onStateChange, categories, editId);
+    const stepContent = buildStepContent(state, errors, onStateChange, categories, editId, classes);
     wrapper.appendChild(stepContent);
 
     wrapper.appendChild(buildNavButtons(state, onNext, onBack, editId));
@@ -205,7 +214,7 @@ function buildWizardLayout(state, errors, onStateChange, onNext, onBack, categor
 // ---------------------------------------------------------------------------
 // buildStepContent — рендира съдържанието на текущата стъпка
 // ---------------------------------------------------------------------------
-function buildStepContent(state, errors, onStateChange, categories, editId) {
+function buildStepContent(state, errors, onStateChange, categories, editId, classes = []) {
     async function onSave(currentState) {
         if (editId) {
             return testService.updateTest(editId, currentState);
@@ -215,7 +224,7 @@ function buildStepContent(state, errors, onStateChange, categories, editId) {
 
     switch (state.currentStep) {
         case 0:
-            return renderStepTitle(state, onStateChange, errors);
+            return renderStepTitle(state, onStateChange, errors, classes);
         case 1:
             return renderStepCategories(state, onStateChange, errors, categories);
         case 2:

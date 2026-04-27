@@ -101,3 +101,19 @@ export async function getAttemptDetail(testId, attemptId) {
 export async function gradeAttempt(testId, attemptId) {
     return api.post(`/tests/${testId}/attempts/${attemptId}/grade`, {});
 }
+
+// Зарежда списък с класове от students.json директорията (за dropdown)
+export async function getClasses() {
+    return api.get('/tests/classes', { skipAuth: true });
+}
+
+// Проверява дали имейлът на ученика е в директорията — връща { fullName, className }
+// Хвърля грешка при 404 (имейлът не е намерен)
+export async function resolveEmail(shareCode, email) {
+    return api.post(`/tests/${shareCode}/resolve-email`, { email }, { skipAuth: true });
+}
+
+// Анулира опит — учителят позволява повторно решаване
+export async function voidAttempt(testId, attemptId) {
+    return api.post(`/tests/${testId}/attempts/${attemptId}/void`, {});
+}

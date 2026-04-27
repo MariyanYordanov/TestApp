@@ -289,3 +289,57 @@ describe('renderStepTitle — показване на грешки', () => {
         expect(errorEls.length).toBe(0);
     });
 });
+
+// ---------------------------------------------------------------------------
+// renderStepTitle — TargetClass dropdown
+// ---------------------------------------------------------------------------
+
+describe('renderStepTitle — TargetClass dropdown (Commit 1)', () => {
+    it('не рендира dropdown когато classes е празен масив', () => {
+        const state = { title: 'Тест', description: 'Описание', targetClass: null };
+        const el = renderStepTitle(state, vi.fn(), [], []);
+        const select = el.querySelector('#test-target-class');
+        // При празни класове — или няма select, или е disabled
+        if (select) {
+            expect(select.disabled).toBe(true);
+        } else {
+            expect(select).toBeNull();
+        }
+    });
+
+    it('рендира dropdown с опциите когато classes не е празен', () => {
+        const state = { title: 'Тест', description: 'Описание', targetClass: null };
+        const classes = ['9А', '9Б', '10А'];
+        const el = renderStepTitle(state, vi.fn(), [], classes);
+        const select = el.querySelector('#test-target-class');
+        expect(select).not.toBeNull();
+        expect(select.disabled).toBe(false);
+        // Проверяваме дали опциите са налице
+        const options = Array.from(select.options).map(o => o.value);
+        expect(options).toContain('9А');
+        expect(options).toContain('10А');
+    });
+
+    it('предварително избира targetClass от state', () => {
+        const state = { title: 'Тест', description: 'Описание', targetClass: '9Б' };
+        const classes = ['9А', '9Б', '10А'];
+        const el = renderStepTitle(state, vi.fn(), [], classes);
+        const select = el.querySelector('#test-target-class');
+        expect(select).not.toBeNull();
+        expect(select.value).toBe('9Б');
+    });
+
+    it('промяна на dropdown извиква onStateChange с новия targetClass (immutable)', () => {
+        const onStateChange = vi.fn();
+        const state = { title: 'Тест', description: 'Описание', targetClass: null };
+        const classes = ['9А', '9Б'];
+        const el = renderStepTitle(state, onStateChange, [], classes);
+        const select = el.querySelector('#test-target-class');
+        select.value = '9А';
+        select.dispatchEvent(new Event('change'));
+        expect(onStateChange).toHaveBeenCalled();
+        const newState = onStateChange.mock.calls[0][0];
+        expect(newState).not.toBe(state); // immutable
+        expect(newState.targetClass).toBe('9А');
+    });
+});

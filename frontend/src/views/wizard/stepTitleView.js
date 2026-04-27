@@ -58,7 +58,7 @@ export function validateStep1(state) {
 // @param {string[]} errors        — масив с грешки (по подразбиране [])
 // @returns {HTMLElement}
 // ---------------------------------------------------------------------------
-export function renderStepTitle(state, onStateChange, errors = []) {
+export function renderStepTitle(state, onStateChange, errors = [], classes = []) {
     const container = document.createElement('div');
     container.className = 'step-content step-title';
 
@@ -90,6 +90,9 @@ export function renderStepTitle(state, onStateChange, errors = []) {
 
     // --- Поле: Продължителност в минути ---
     container.appendChild(buildDurationField(state, onStateChange));
+
+    // --- Поле: Целеви клас (dropdown от students.json) ---
+    container.appendChild(buildTargetClassField(state, onStateChange, classes));
 
     // --- Грешки ---
     if (errors.length > 0) {
@@ -130,6 +133,54 @@ function buildDurationField(state, onStateChange) {
 
     wrapper.appendChild(labelEl);
     wrapper.appendChild(inputEl);
+
+    return wrapper;
+}
+
+// Строи поле за целеви клас (dropdown — информативно, незадължително)
+// При празни classes — показва disabled select
+function buildTargetClassField(state, onStateChange, classes) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-group';
+
+    const labelEl = document.createElement('label');
+    labelEl.htmlFor = 'test-target-class';
+    labelEl.textContent = 'Целеви клас (незадължително)';
+
+    const selectEl = document.createElement('select');
+    selectEl.id = 'test-target-class';
+    selectEl.className = 'form-input';
+
+    if (!classes || classes.length === 0) {
+        selectEl.disabled = true;
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '— няма класове в директорията —';
+        selectEl.appendChild(placeholder);
+    } else {
+        // Placeholder опция
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '— не е избран —';
+        selectEl.appendChild(placeholder);
+
+        classes.forEach(cls => {
+            const opt = document.createElement('option');
+            opt.value = cls;
+            opt.textContent = cls;
+            selectEl.appendChild(opt);
+        });
+
+        // Предварително избира стойността от state
+        selectEl.value = state.targetClass ?? '';
+
+        selectEl.addEventListener('change', () => {
+            onStateChange({ ...state, targetClass: selectEl.value || null });
+        });
+    }
+
+    wrapper.appendChild(labelEl);
+    wrapper.appendChild(selectEl);
 
     return wrapper;
 }

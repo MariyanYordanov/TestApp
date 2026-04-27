@@ -90,5 +90,12 @@ public class AppDbContext : DbContext
         builder.Entity<AttemptAnswer>()
             .Property(aa => aa.GradingStatus)
             .HasConversion<int>();
+
+        // Filtered unique index — единствен non-voided опит per (TestId, ParticipantEmail)
+        // SQLite: "IsVoided" = 0 AND "ParticipantEmail" IS NOT NULL
+        builder.Entity<Attempt>()
+            .HasIndex(a => new { a.TestId, a.ParticipantEmail })
+            .HasFilter("\"IsVoided\" = 0 AND \"ParticipantEmail\" IS NOT NULL")
+            .IsUnique();
     }
 }

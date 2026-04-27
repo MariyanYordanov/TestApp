@@ -11,6 +11,10 @@ public class SubmitAttemptRequest
     [MaxLength(200, ErrorMessage = "Името не може да е по-дълго от 200 символа.")]
     public string ParticipantName { get; set; } = string.Empty;
 
+    // Имейл на участника (само при email gate тестове)
+    [MaxLength(254, ErrorMessage = "Имейлът не може да е по-дълъг от 254 символа.")]
+    public string? ParticipantEmail { get; set; }
+
     // Избрани отговори
     public List<AttemptAnswerDto> Answers { get; set; } = new();
 }

@@ -5,7 +5,8 @@
 //   - Зарежда всички тестове на учителя
 //   - Показва dropdown за избор на тест
 //   - При избор на тест зарежда и показва опитите в таблица
-//   - Показва grешка при неуспешни заявки
+//   - Email gate тестове: показва void бутон "Разреши повторение"
+//   - Показва грешка при неуспешни заявки
 
 import * as testService from '../services/testService.js';
 import { buildStatsTable, buildEmptyStatsMessage } from '../templates/statsTableTemplate.js';
@@ -37,11 +38,14 @@ export async function showStatistics(_ctx) {
     // Свързваме select с логиката за зареждане на опити
     const select = main.querySelector('select');
     const statsArea = main.querySelector('#stats-area');
+
     select.addEventListener('change', () => {
         const testId = select.value;
-        if (testId) loadAttempts(testId, statsArea);
+        if (!testId) return;
+        // Намираме избрания тест за да знаем дали има email gate
+        const selectedTest = tests.find(t => t.id === testId);
+        loadAttempts(testId, statsArea, selectedTest?.requireEmailGate ?? false);
     });
-
 }
 
 // Изгражда цялата страница: заглавие + dropdown + зона за статистика
@@ -102,7 +106,8 @@ function buildTestSelector(tests) {
 }
 
 // Зарежда и рендира опитите за избран тест
-async function loadAttempts(testId, container) {
+// showEmailGate: дали да показва void бутон и имейл колона
+async function loadAttempts(testId, container, showEmailGate = false) {
     // Показваме loading в зоната за статистика
     const loadingEl = document.createElement('div');
     loadingEl.className = 'loading';
@@ -115,8 +120,26 @@ async function loadAttempts(testId, container) {
         if (attempts.length === 0) {
             container.replaceChildren(buildEmptyStatsMessage());
         } else {
-            // Предаваме testId на buildStatsTable за навигация при клик върху ред
-            container.replaceChildren(buildStatsTable(attempts, testId));
+            // Callback за void бутон — анулира опит и презарежда таблицата
+            const onVoid = showEmailGate
+                ? async (attemptId) => {
+                    try {
+                        await testService.voidAttempt(testId, attemptId);
+                        // Презарежда опитите след успешен void
+                        loadAttempts(testId, container, showEmailGate);
+                    } catch (err) {
+                        const errorEl = document.createElement('div');
+                        errorEl.className = 'error';
+                        errorEl.textContent = `Грешка при анулиране: ${err.message}`;
+                        container.appendChild(errorEl);
+                    }
+                }
+                : null;
+
+            container.replaceChildren(buildStatsTable(attempts, testId, {
+                showEmailGate,
+                onVoid,
+            }));
         }
     } catch (err) {
         const errorEl = document.createElement('div');

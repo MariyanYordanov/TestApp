@@ -1,0 +1,22 @@
+{
+  "9А": [
+    { "email": "ivan.petrov@school.bg", "fullName": "Иван Петров Иванов" },
+    { "email": "maria.koleva@school.bg", "fullName": "Мария Колева Стоянова" }
+  ],
+  "9Б": [
+    { "email": "georgi.dimitrov@school.bg", "fullName": "Георги Димитров Николов" }
+  ],
+  "10А": [
+    { "email": "petar.stoyanov@school.bg", "fullName": "Петър Стоянов Петков" },
+    { "email": "anna.ivanova@school.bg", "fullName": "Анна Иванова Костова" }
+  ],
+  "10Б": [
+    { "email": "stefan.kolev@school.bg", "fullName": "Стефан Колев Димитров" }
+  ],
+  "11А": [
+    { "email": "elena.todorova@school.bg", "fullName": "Елена Тодорова Стоянова" }
+  ],
+  "11Б": [
+    { "email": "dimitar.nikolov@school.bg", "fullName": "Димитър Николов Петров" }
+  ]
+}

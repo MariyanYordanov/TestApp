@@ -10,8 +10,8 @@
    ------------------------------------------------------------ */
 :root {
     /* Основни цветове */
-    --color-primary:       #4f46e5; /* индиго — основен акцент */
-    --color-primary-hover: #4338ca;
+    --color-primary:       #46b0e5; /* основен акцент */
+    --color-primary-hover: #38beca;
     --color-primary-light: #eef2ff;
 
     --color-success: #16a34a;
@@ -28,9 +28,9 @@
     --color-text-muted: #64748b; /* по-бледо — описания, метаданни */
 
     /* Sidebar */
-    --sidebar-bg:    #1e1b4b; /* тъмно индиго */
+    --sidebar-bg:    #285d6e; 
     --sidebar-text:  #c7d2fe;
-    --sidebar-active:#4f46e5;
+    --sidebar-active:#46b0e5;
     --sidebar-width: 240px;
 
     /* Размери */

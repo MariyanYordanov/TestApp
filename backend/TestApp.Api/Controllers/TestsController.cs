@@ -14,10 +14,22 @@ namespace TestApp.Api.Controllers;
 public class TestsController : ControllerBase
 {
     private readonly ITestService _testService;
+    private readonly IStudentDirectoryService _studentDirectory;
 
-    public TestsController(ITestService testService)
+    public TestsController(ITestService testService, IStudentDirectoryService studentDirectory)
     {
         _testService = testService;
+        _studentDirectory = studentDirectory;
+    }
+
+    // GET api/tests/classes — списък с класове от students.json (за dropdown в wizard-а)
+    // Публичен endpoint — не изисква JWT
+    [HttpGet("classes")]
+    [AllowAnonymous]
+    public IActionResult GetClasses()
+    {
+        var classes = _studentDirectory.GetClasses();
+        return Ok(classes);
     }
 
     // GET api/tests — списък с тестовете на текущия потребител
@@ -231,6 +243,43 @@ public class TestsController : ControllerBase
         return Ok(new { message = "Оценяването завърши." });
     }
 
+    // POST api/tests/{shareCode}/resolve-email — ученикът проверява дали имейлът му е в директорията
+    // Публичен endpoint — не изисква JWT
+    [HttpPost("{shareCode}/resolve-email")]
+    [AllowAnonymous]
+    [EnableRateLimiting("PublicPolicy")]
+    public IActionResult ResolveEmail(string shareCode, [FromBody] ResolveEmailRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(new { error = "Имейлът е задължителен." });
+
+        if (!_studentDirectory.IsAvailable)
+            return StatusCode(503, new { error = "Директорията с ученици не е достъпна." });
+
+        var normalized = request.Email.Trim().ToLowerInvariant();
+        var result = _studentDirectory.FindByEmail(normalized);
+
+        if (result is null)
+            return NotFound(new { error = "Имейлът не е намерен в директорията." });
+
+        return Ok(new { fullName = result.FullName, className = result.ClassName });
+    }
+
+    // POST api/tests/{testId}/attempts/{attemptId}/void — учителят анулира опит
+    [HttpPost("{testId:guid}/attempts/{attemptId:guid}/void")]
+    [Authorize]
+    public async Task<IActionResult> VoidAttempt(Guid testId, Guid attemptId)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        var success = await _testService.VoidAttemptAsync(testId, attemptId, ownerId);
+        if (!success)
+            return NotFound(new { error = "Опитът не е намерен." });
+
+        return Ok(new { message = "Опитът е анулиран. Ученикът може да предаде отново." });
+    }
+
     // Опитва да извлече userId от JWT токена — връща false ако липсва claim
     private bool TryGetCurrentUserId(out Guid userId)
     {
@@ -238,4 +287,10 @@ public class TestsController : ControllerBase
         string? userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return !string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out userId);
     }
+}
+
+// DTO за resolve-email заявка
+public class ResolveEmailRequest
+{
+    public string Email { get; set; } = string.Empty;
 }

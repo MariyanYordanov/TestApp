@@ -28,6 +28,9 @@ backend/**/*.db-wal
 # Environment файлове (тайни ключове)
 .env
 .env.local
+
+# students.json — реалните имейли не се качват в git
+backend/TestApp.Api/Data/students.json
 .env.*.local
 backend/TestApp.Api/appsettings.Development.json
 

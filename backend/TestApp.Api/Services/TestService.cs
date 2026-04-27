@@ -13,13 +13,20 @@ public class TestService : ITestService
     private readonly AppDbContext _db;
     private readonly IShareCodeGenerator _shareCodeGenerator;
     private readonly IAiGradingService? _aiGrading;
+    private readonly IStudentDirectoryService? _directory;
     private readonly ILogger<TestService>? _logger;
 
-    public TestService(AppDbContext db, IShareCodeGenerator shareCodeGenerator, IAiGradingService? aiGrading = null, ILogger<TestService>? logger = null)
+    public TestService(
+        AppDbContext db,
+        IShareCodeGenerator shareCodeGenerator,
+        IAiGradingService? aiGrading = null,
+        ILogger<TestService>? logger = null,
+        IStudentDirectoryService? directory = null)
     {
         _db = db;
         _shareCodeGenerator = shareCodeGenerator;
         _aiGrading = aiGrading;
+        _directory = directory;
         _logger = logger;
     }
 
@@ -136,6 +143,8 @@ public class TestService : ITestService
             ShareCode = shareCode,
             OwnerId = ownerId,
             CreatedAt = DateTime.UtcNow,
+            TargetClass = request.TargetClass,
+            RequireEmailGate = request.RequireEmailGate,
             Questions = questions,
             TestCategories = testCategories
         };
@@ -182,6 +191,8 @@ public class TestService : ITestService
             Title = test.Title,
             Description = test.Description,
             Duration = test.Duration,
+            TargetClass = test.TargetClass,
+            RequireEmailGate = test.RequireEmailGate,
             Questions = test.Questions
                 .OrderBy(q => q.OrderIndex)
                 .Select(q => new PublicQuestionDto
@@ -264,6 +275,41 @@ public class TestService : ITestService
         if (test is null)
         {
             return null;
+        }
+
+        // --- Email Gate логика ---
+        string? resolvedParticipantName = request.ParticipantName;
+        string? normalizedEmail = null;
+
+        if (test.RequireEmailGate)
+        {
+            // Ако директорията не е достъпна — fail-open (пропускаме gate)
+            bool directoryAvailable = _directory?.IsAvailable ?? false;
+
+            if (directoryAvailable)
+            {
+                // Изискваме имейл
+                if (string.IsNullOrWhiteSpace(request.ParticipantEmail))
+                    return null;
+
+                normalizedEmail = request.ParticipantEmail.Trim().ToLowerInvariant();
+
+                // Търсим ученика в директорията
+                var lookupResult = _directory!.FindByEmail(normalizedEmail);
+                if (lookupResult is null)
+                    return null;
+
+                // Override ParticipantName от директорията
+                resolvedParticipantName = lookupResult.FullName;
+
+                // Проверяваме за съществуващ non-voided опит (single-attempt enforcement)
+                bool alreadyAttempted = await _db.Attempts
+                    .AnyAsync(a => a.TestId == test.Id
+                                && a.ParticipantEmail == normalizedEmail
+                                && !a.IsVoided);
+                if (alreadyAttempted)
+                    return null;
+            }
         }
 
         // Изчислява резултата и записва AttemptAnswers
@@ -363,7 +409,8 @@ public class TestService : ITestService
         var attempt = new Attempt
         {
             Id = Guid.NewGuid(),
-            ParticipantName = request.ParticipantName,
+            ParticipantName = resolvedParticipantName,
+            ParticipantEmail = normalizedEmail,
             Score = score,
             TotalQuestions = maxScore,   // Съхраняваме MaxScore в TotalQuestions за обратна съвместимост
             TestId = test.Id,
@@ -610,12 +657,14 @@ public class TestService : ITestService
             {
                 Id = a.Id,
                 ParticipantName = a.ParticipantName,
+                ParticipantEmail = a.ParticipantEmail,
                 Score = a.Score,
                 TotalQuestions = a.TotalQuestions,
                 Percent = a.TotalQuestions > 0
                     ? Math.Round((double)a.Score / a.TotalQuestions * 100, 2)
                     : 0,
-                CreatedAt = a.CreatedAt
+                CreatedAt = a.CreatedAt,
+                IsVoided = a.IsVoided
             })
             .ToListAsync();
     }
@@ -831,6 +880,24 @@ public class TestService : ITestService
 
         attempt.Score = scorablePoints + aiPoints;
 
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
+    // Анулира опит — учителят маркира IsVoided=true, позволявайки повторно решаване
+    // Опитът НЕ се изтрива — запазва се за audit trail
+    public async Task<bool> VoidAttemptAsync(Guid testId, Guid attemptId, Guid ownerId)
+    {
+        // Проверява дали тестът принадлежи на ownerId
+        var testExists = await _db.Tests.AnyAsync(t => t.Id == testId && t.OwnerId == ownerId);
+        if (!testExists) return false;
+
+        var attempt = await _db.Attempts
+            .FirstOrDefaultAsync(a => a.Id == attemptId && a.TestId == testId);
+
+        if (attempt is null) return false;
+
+        attempt.IsVoided = true;
         await _db.SaveChangesAsync();
         return true;
     }

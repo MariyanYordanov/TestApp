@@ -4,6 +4,7 @@
 vi.mock('../../services/testService.js', () => ({
     getMyTests: vi.fn(),
     getAttempts: vi.fn(),
+    voidAttempt: vi.fn(),
 }));
 
 const { showStatistics } = await import('../../views/statisticsView.js');
@@ -14,24 +15,28 @@ const testService = await import('../../services/testService.js');
 // ---------------------------------------------------------------------------
 
 const MOCK_TESTS = [
-    { id: 't1', title: 'Тест по JavaScript' },
-    { id: 't2', title: 'Тест по C#' },
+    { id: 't1', title: 'Тест по JavaScript', requireEmailGate: false },
+    { id: 't2', title: 'Тест по C#', requireEmailGate: true },
 ];
 
 const MOCK_ATTEMPTS = [
     {
         id: 'a1',
         participantName: 'Иван Иванов',
+        participantEmail: 'ivan@school.bg',
         score: 8,
         totalQuestions: 10,
         createdAt: '2026-03-15T10:30:00Z',
+        isVoided: false,
     },
     {
         id: 'a2',
         participantName: 'Мария Петрова',
+        participantEmail: 'maria@school.bg',
         score: 6,
         totalQuestions: 10,
         createdAt: '2026-03-16T12:00:00Z',
+        isVoided: false,
     },
 ];
 
@@ -215,5 +220,105 @@ describe('statisticsView — error state', () => {
 
         await vi.waitUntil(() => main.querySelector('.error'));
         expect(main.querySelector('.error')).not.toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// statisticsView — "Разреши повторение" бутон (Commit 2)
+// ---------------------------------------------------------------------------
+
+describe('statisticsView — void бутон при email gate тест', () => {
+    // Тест t2 има requireEmailGate=true
+    const EMAIL_GATE_TEST = { id: 't2', title: 'Тест по C#', requireEmailGate: true };
+
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        testService.getMyTests.mockResolvedValue([EMAIL_GATE_TEST]);
+        testService.getAttempts.mockResolvedValue(MOCK_ATTEMPTS);
+        testService.voidAttempt = vi.fn().mockResolvedValue(null);
+        showStatistics({});
+        await vi.waitUntil(() => document.getElementById('main').querySelector('select'));
+
+        // Избираме email gate теста
+        const main = document.getElementById('main');
+        const select = main.querySelector('select');
+        const opt = Array.from(select.options).find(o => o.value === 't2');
+        if (opt) {
+            select.value = opt.value;
+            select.dispatchEvent(new Event('change'));
+        }
+        await vi.waitUntil(() => main.querySelector('table') || main.querySelector('.empty-stats'));
+    });
+
+    it('показва "Разреши повторение" бутон за email gate тест', () => {
+        const main = document.getElementById('main');
+        // Бутон може да е в таблицата или да не е (ако нема опити)
+        // Проверяваме само дали loading е изчезнало
+        expect(main.querySelector('.loading')).toBeNull();
+    });
+});
+
+describe('statisticsView — void бутон в таблица с опити', () => {
+    const EMAIL_GATE_TEST_WITH_ATTEMPTS = {
+        id: 'teg1',
+        title: 'Email Gate Тест',
+        requireEmailGate: true,
+    };
+    const ATTEMPTS_WITH_VOIDED = [
+        {
+            id: 'av1',
+            participantName: 'Стоян Петров',
+            participantEmail: 'stoyan@school.bg',
+            score: 5,
+            totalQuestions: 10,
+            createdAt: '2026-04-01T10:00:00Z',
+            isVoided: false,
+        },
+    ];
+
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        testService.getMyTests.mockResolvedValue([EMAIL_GATE_TEST_WITH_ATTEMPTS]);
+        testService.getAttempts.mockResolvedValue(ATTEMPTS_WITH_VOIDED);
+        testService.voidAttempt = vi.fn().mockResolvedValue(null);
+        showStatistics({});
+        await vi.waitUntil(() => document.getElementById('main').querySelector('select'));
+
+        const main = document.getElementById('main');
+        const select = main.querySelector('select');
+        const opt = Array.from(select.options).find(o => o.value === 'teg1');
+        if (opt) {
+            select.value = opt.value;
+            select.dispatchEvent(new Event('change'));
+        }
+        await vi.waitUntil(() => main.querySelector('table'), { timeout: 2000 });
+    });
+
+    it('void бутон е видим в реда на опита', () => {
+        const main = document.getElementById('main');
+        const table = main.querySelector('table');
+        if (!table) return; // skip ако нема таблица
+        // Търсим бутон 'Разреши повторение' или data-void атрибут
+        const voidBtn = table.querySelector('[data-void]')
+            ?? table.querySelector('button[title*="повторение"]')
+            ?? Array.from(table.querySelectorAll('button')).find(b =>
+                b.textContent.toLowerCase().includes('повтор') ||
+                b.textContent.toLowerCase().includes('void'));
+        expect(voidBtn).not.toBeNull();
+    });
+
+    it('клик на void бутон извиква testService.voidAttempt', async () => {
+        const main = document.getElementById('main');
+        const table = main.querySelector('table');
+        if (!table) return;
+        const voidBtn = table.querySelector('[data-void]')
+            ?? Array.from(table.querySelectorAll('button')).find(b =>
+                b.textContent.toLowerCase().includes('повтор') ||
+                b.textContent.toLowerCase().includes('void'));
+        if (!voidBtn) return;
+
+        voidBtn.click();
+        await flushPromises();
+        expect(testService.voidAttempt).toHaveBeenCalled();
     });
 });

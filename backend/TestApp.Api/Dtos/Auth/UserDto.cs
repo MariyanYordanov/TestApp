@@ -10,6 +10,6 @@ public class UserDto
     // Имейл адрес
     public string Email { get; set; } = string.Empty;
 
-    // Пълно ime
+    // Пълно име
     public string FullName { get; set; } = string.Empty;
 }

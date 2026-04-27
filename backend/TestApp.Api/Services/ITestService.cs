@@ -44,4 +44,7 @@ public interface ITestService
 
     // Стартира AI оценяване на всички Pending отговори в опит. Само за собственика на теста.
     Task<bool> GradeAttemptAsync(Guid testId, Guid attemptId, Guid ownerId);
+
+    // Анулира опит (IsVoided=true) — позволява повторно решаване. Само за собственика на теста.
+    Task<bool> VoidAttemptAsync(Guid testId, Guid attemptId, Guid ownerId);
 }

@@ -16,6 +16,12 @@ public class PublicTestResponse
     // Продължителност в секунди
     public int Duration { get; set; }
 
+    // Целеви клас (информативно — показва се на ученика)
+    public string? TargetClass { get; set; }
+
+    // Изисква email gate (за да знае UI дали да покаже email поле)
+    public bool RequireEmailGate { get; set; }
+
     // Въпроси (БЕЗ информация за верни отговори)
     public List<PublicQuestionDto> Questions { get; set; } = new();
 }
