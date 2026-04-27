@@ -1235,3 +1235,40 @@ textarea.form-input {
     border: none;
 }
 .btn-danger:hover { opacity: 0.9; }
+
+/* Inline форма за класове/ученици */
+.inline-form-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-primary-light);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.inline-form-card h3 {
+    margin: 0 0 0.75rem;
+    font-size: var(--font-size-base);
+    color: var(--color-primary);
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.inline-error {
+    margin-top: 0.5rem !important;
+}
+
+.help-text {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin: 0 0 0.5rem;
+}
+
+.student-edit-card {
+    background: #fef9c3;
+    border-left-color: #ca8a04;
+}

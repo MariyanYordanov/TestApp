@@ -324,8 +324,10 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
             throw new InvalidOperationException("Името на класа е твърде дълго (макс 20 символа).");
     }
 
+    // Стриктен email regex: ASCII букви/цифри/точки/_-/+ преди @,
+    // ASCII домейн, TLD от 2-63 ASCII букви (отхвърля кирилски ".цом")
     private static readonly System.Text.RegularExpressions.Regex EmailRegex = new(
-        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        @"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$",
         System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static void ValidateEmail(string email)
@@ -333,7 +335,8 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
         if (string.IsNullOrWhiteSpace(email))
             throw new InvalidOperationException("Имейлът е задължителен.");
         if (!EmailRegex.IsMatch(email.Trim()))
-            throw new InvalidOperationException($"Невалиден имейл формат: '{email}'.");
+            throw new InvalidOperationException(
+                $"Невалиден имейл формат: '{email}'. Използвайте латински букви.");
     }
 
     private static void ValidateFullName(string fullName)
@@ -423,19 +426,19 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
         finally { _lock.ExitWriteLock(); }
     }
 
-    // FileSystemWatcher event handler — debounced
-    private void OnFileChanged(object sender, FileSystemEventArgs e)
-    {
-        // Нулираме debounce timer-а
-        _debounceTimer?.Change(DebounceMs, Timeout.Infinite);
-        _debounceTimer ??= new System.Threading.Timer(_ => TryLoadSnapshot(), null, DebounceMs, Timeout.Infinite);
-        _debounceTimer.Change(DebounceMs, Timeout.Infinite);
-    }
+    // FileSystemWatcher event handlers — и двата ползват TryLoadSnapshot,
+    // което вътрешно вика SetSnapshot(EmptySnapshot) при липсващ файл.
+    // ВАЖНО: ПРЕДИ имаше race condition — `??=` не обновяваше callback-а,
+    // така че при File.Delete + File.Move последователност, timer-ът фалшиво
+    // wipe-ваше snapshot-а 500ms след successful write.
+    private void OnFileChanged(object sender, FileSystemEventArgs e) => ScheduleReload();
+    private void OnFileDeleted(object sender, FileSystemEventArgs e) => ScheduleReload();
 
-    private void OnFileDeleted(object sender, FileSystemEventArgs e)
+    private void ScheduleReload()
     {
-        _debounceTimer?.Change(DebounceMs, Timeout.Infinite);
-        _debounceTimer ??= new System.Threading.Timer(_ => SetSnapshot(EmptySnapshot), null, DebounceMs, Timeout.Infinite);
+        _debounceTimer ??= new System.Threading.Timer(
+            _ => TryLoadSnapshot(),
+            null, Timeout.Infinite, Timeout.Infinite);
         _debounceTimer.Change(DebounceMs, Timeout.Infinite);
     }
 
