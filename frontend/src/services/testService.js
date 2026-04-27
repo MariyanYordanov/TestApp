@@ -117,3 +117,47 @@ export async function resolveEmail(shareCode, email) {
 export async function voidAttempt(testId, attemptId) {
     return api.post(`/tests/${testId}/attempts/${attemptId}/void`, {});
 }
+
+// ---------------------------------------------------------------------------
+// Класове и ученици (CRUD на students.json)
+// ---------------------------------------------------------------------------
+
+export async function getAllClasses() {
+    return api.get('/classes');
+}
+
+export async function createClass(name) {
+    return api.post('/classes', { name });
+}
+
+export async function renameClass(oldName, newName) {
+    return api.put(`/classes/${encodeURIComponent(oldName)}`, { newName });
+}
+
+export async function deleteClass(name) {
+    return api.delete(`/classes/${encodeURIComponent(name)}`);
+}
+
+export async function addStudent(className, email, fullName) {
+    return api.post(`/classes/${encodeURIComponent(className)}/students`, { email, fullName });
+}
+
+export async function updateStudent(className, oldEmail, newEmail, fullName) {
+    return api.put(
+        `/classes/${encodeURIComponent(className)}/students/${encodeURIComponent(oldEmail)}`,
+        { email: newEmail, fullName }
+    );
+}
+
+export async function deleteStudent(className, email) {
+    return api.delete(
+        `/classes/${encodeURIComponent(className)}/students/${encodeURIComponent(email)}`
+    );
+}
+
+export async function bulkAddStudents(className, students) {
+    return api.post(
+        `/classes/${encodeURIComponent(className)}/students/bulk`,
+        { students }
+    );
+}

@@ -14,6 +14,7 @@ import { isAuthenticated, logout, getUser } from '../services/auth.js';
 const NAV_ITEMS = [
     { path: '/dashboard',  label: 'Моите тестове' },
     { path: '/categories', label: 'Категории' },
+    { path: '/classes',    label: 'Класове' },
     { path: '/statistics', label: 'Статистика' },
     { path: '/account',    label: 'Акаунт' },
 ];

@@ -93,6 +93,256 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
         finally { _lock.ExitReadLock(); }
     }
 
+    // ---------------------------------------------------------------------
+    // CRUD методи — четат, мутират и записват students.json. След запис
+    // FileSystemWatcher автоматично презарежда snapshot-а (debounced).
+    // Използваме _writeLock за сериализиране на write операциите.
+    // ---------------------------------------------------------------------
+    private readonly object _writeLock = new();
+
+    public IReadOnlyList<ClassWithStudents> GetAllClassesWithStudents()
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            if (!_snapshot.IsAvailable) return Array.Empty<ClassWithStudents>();
+
+            // Групираме entries по className
+            var byClass = _snapshot.Classes
+                .Select(cls => new ClassWithStudents(
+                    cls,
+                    _snapshot.Entries
+                        .Where(e => e.Value.ClassName == cls)
+                        .Select(e => new StudentRecord(e.Key, e.Value.FullName))
+                        .OrderBy(s => s.FullName)
+                        .ToList()
+                ))
+                .ToList();
+
+            return byClass;
+        }
+        finally { _lock.ExitReadLock(); }
+    }
+
+    public void CreateClass(string name)
+    {
+        ValidateClassName(name);
+        lock (_writeLock)
+        {
+            var data = LoadRaw();
+            if (data.ContainsKey(name))
+                throw new InvalidOperationException($"Клас '{name}' вече съществува.");
+            data[name] = new List<StudentRecord>();
+            SaveRaw(data);
+        }
+    }
+
+    public void RenameClass(string oldName, string newName)
+    {
+        ValidateClassName(newName);
+        lock (_writeLock)
+        {
+            var data = LoadRaw();
+            if (!data.TryGetValue(oldName, out var students))
+                throw new InvalidOperationException($"Клас '{oldName}' не е намерен.");
+            if (data.ContainsKey(newName) && oldName != newName)
+                throw new InvalidOperationException($"Клас '{newName}' вече съществува.");
+
+            // Запазваме реда — пресъздаваме речника
+            var renamed = new Dictionary<string, List<StudentRecord>>();
+            foreach (var (key, val) in data)
+                renamed[key == oldName ? newName : key] = val;
+            SaveRaw(renamed);
+        }
+    }
+
+    public void DeleteClass(string name)
+    {
+        lock (_writeLock)
+        {
+            var data = LoadRaw();
+            if (!data.Remove(name))
+                throw new InvalidOperationException($"Клас '{name}' не е намерен.");
+            SaveRaw(data);
+        }
+    }
+
+    public void AddStudent(string className, string email, string fullName)
+    {
+        ValidateEmail(email);
+        ValidateFullName(fullName);
+        lock (_writeLock)
+        {
+            var data = LoadRaw();
+            if (!data.TryGetValue(className, out var students))
+                throw new InvalidOperationException($"Клас '{className}' не е намерен.");
+
+            var normalized = email.Trim().ToLowerInvariant();
+            // Проверка за дубликат във ВСИЧКИ класове
+            foreach (var (cls, list) in data)
+            {
+                if (list.Any(s => s.Email.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException(
+                        $"Имейлът '{email}' вече съществува в клас '{cls}'.");
+            }
+
+            students.Add(new StudentRecord(normalized, fullName.Trim()));
+            SaveRaw(data);
+        }
+    }
+
+    public void UpdateStudent(string className, string oldEmail, string newEmail, string fullName)
+    {
+        ValidateEmail(newEmail);
+        ValidateFullName(fullName);
+        lock (_writeLock)
+        {
+            var data = LoadRaw();
+            if (!data.TryGetValue(className, out var students))
+                throw new InvalidOperationException($"Клас '{className}' не е намерен.");
+
+            var normalizedOld = oldEmail.Trim().ToLowerInvariant();
+            var normalizedNew = newEmail.Trim().ToLowerInvariant();
+            var index = students.FindIndex(s =>
+                s.Email.Equals(normalizedOld, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+                throw new InvalidOperationException($"Ученикът с имейл '{oldEmail}' не е намерен.");
+
+            // Ако имейлът се променя — провери за дубликат
+            if (normalizedOld != normalizedNew)
+            {
+                foreach (var (cls, list) in data)
+                {
+                    if (list.Any(s => s.Email.Equals(normalizedNew, StringComparison.OrdinalIgnoreCase)))
+                        throw new InvalidOperationException(
+                            $"Имейлът '{newEmail}' вече съществува в клас '{cls}'.");
+                }
+            }
+
+            students[index] = new StudentRecord(normalizedNew, fullName.Trim());
+            SaveRaw(data);
+        }
+    }
+
+    public void DeleteStudent(string className, string email)
+    {
+        lock (_writeLock)
+        {
+            var data = LoadRaw();
+            if (!data.TryGetValue(className, out var students))
+                throw new InvalidOperationException($"Клас '{className}' не е намерен.");
+
+            var normalized = email.Trim().ToLowerInvariant();
+            var removed = students.RemoveAll(s =>
+                s.Email.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+            if (removed == 0)
+                throw new InvalidOperationException($"Ученикът с имейл '{email}' не е намерен.");
+
+            SaveRaw(data);
+        }
+    }
+
+    public int BulkAddStudents(string className, IReadOnlyList<StudentRecord> students)
+    {
+        if (students == null || students.Count == 0) return 0;
+
+        lock (_writeLock)
+        {
+            var data = LoadRaw();
+            if (!data.TryGetValue(className, out var existing))
+                throw new InvalidOperationException($"Клас '{className}' не е намерен.");
+
+            // Събираме всички съществуващи имейли (от всички класове) за дубликат проверка
+            var allEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (_, list) in data)
+                foreach (var s in list) allEmails.Add(s.Email);
+
+            int added = 0;
+            foreach (var s in students)
+            {
+                if (string.IsNullOrWhiteSpace(s.Email) || string.IsNullOrWhiteSpace(s.FullName))
+                    continue;
+                try { ValidateEmail(s.Email); } catch { continue; }
+
+                var normalized = s.Email.Trim().ToLowerInvariant();
+                if (allEmails.Contains(normalized)) continue;
+
+                existing.Add(new StudentRecord(normalized, s.FullName.Trim()));
+                allEmails.Add(normalized);
+                added++;
+            }
+
+            if (added > 0) SaveRaw(data);
+            return added;
+        }
+    }
+
+    // ---- Помощни ----
+
+    private Dictionary<string, List<StudentRecord>> LoadRaw()
+    {
+        if (!File.Exists(_jsonPath))
+            return new Dictionary<string, List<StudentRecord>>();
+
+        var json = File.ReadAllText(_jsonPath);
+        var parsed = JsonSerializer.Deserialize<Dictionary<string, List<StudentRecord>>>(
+            json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? new Dictionary<string, List<StudentRecord>>();
+        return parsed;
+    }
+
+    private void SaveRaw(Dictionary<string, List<StudentRecord>> data)
+    {
+        // Гарантира съществуването на директорията
+        var dir = Path.GetDirectoryName(_jsonPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+
+        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+
+        // Atomic write: пише в .tmp, после rename. Защитава от corruption при crash.
+        var tmpPath = _jsonPath + ".tmp";
+        File.WriteAllText(tmpPath, json);
+        if (File.Exists(_jsonPath)) File.Delete(_jsonPath);
+        File.Move(tmpPath, _jsonPath);
+
+        // Принудително презарежда snapshot веднага (без да чака FileSystemWatcher)
+        TryLoadSnapshot();
+    }
+
+    private static void ValidateClassName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Името на класа е задължително.");
+        if (name.Length > 20)
+            throw new InvalidOperationException("Името на класа е твърде дълго (макс 20 символа).");
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex EmailRegex = new(
+        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static void ValidateEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            throw new InvalidOperationException("Имейлът е задължителен.");
+        if (!EmailRegex.IsMatch(email.Trim()))
+            throw new InvalidOperationException($"Невалиден имейл формат: '{email}'.");
+    }
+
+    private static void ValidateFullName(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            throw new InvalidOperationException("Името е задължително.");
+        if (fullName.Length > 200)
+            throw new InvalidOperationException("Името е твърде дълго (макс 200 символа).");
+    }
+
     // Зарежда/презарежда snapshot от файла
     private void TryLoadSnapshot()
     {

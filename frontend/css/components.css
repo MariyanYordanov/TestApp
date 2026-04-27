@@ -1122,3 +1122,116 @@ textarea.form-input {
         font-size: 0.75rem;
     }
 }
+
+/* ============================================================
+ * Класове — управление на ученици (classesView)
+ * ============================================================ */
+
+.classes-page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.classes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.classes-header h1 {
+    margin: 0;
+}
+
+.classes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.class-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1rem;
+}
+
+.class-summary {
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    list-style: none;
+    user-select: none;
+}
+
+.class-summary::-webkit-details-marker { display: none; }
+
+.class-summary::before {
+    content: "▶";
+    margin-right: 0.5rem;
+    font-size: 0.75rem;
+    transition: transform 0.15s;
+    display: inline-block;
+}
+
+.class-card[open] .class-summary::before {
+    transform: rotate(90deg);
+}
+
+.class-name {
+    color: var(--color-primary);
+}
+
+.class-count {
+    color: var(--color-text-muted);
+    font-weight: 400;
+    font-size: var(--font-size-sm);
+}
+
+.class-body {
+    padding: 0.75rem 0 0.25rem 1.5rem;
+}
+
+.students-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.students-empty {
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin: 0;
+}
+
+.student-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.student-info {
+    flex: 1;
+    font-size: var(--font-size-sm);
+}
+
+.class-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--color-border);
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.btn-danger {
+    background: var(--color-danger);
+    color: white;
+    border: none;
+}
+.btn-danger:hover { opacity: 0.9; }
