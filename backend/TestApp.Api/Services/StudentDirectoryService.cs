@@ -302,6 +302,7 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
         {
             WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         });
 
@@ -374,13 +375,9 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
 
                 foreach (var studentEl in studentsEl.EnumerateArray())
                 {
-                    string? email = null;
-                    string? fullName = null;
-
-                    if (studentEl.TryGetProperty("email", out var emailEl))
-                        email = emailEl.GetString();
-                    if (studentEl.TryGetProperty("fullName", out var nameEl))
-                        fullName = nameEl.GetString();
+                    // Толерантно четене — приема и camelCase, и PascalCase
+                    string? email = TryReadString(studentEl, "email", "Email");
+                    string? fullName = TryReadString(studentEl, "fullName", "FullName");
 
                     if (email == null || fullName == null) continue;
 
@@ -406,6 +403,17 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
         {
             _logger?.LogError(ex, "Грешка при зареждане на students.json.");
         }
+    }
+
+    // Толерантно четене на string property — пробва списък имена
+    private static string? TryReadString(JsonElement el, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (el.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String)
+                return prop.GetString();
+        }
+        return null;
     }
 
     private void SetSnapshot(DirectorySnapshot snapshot)
