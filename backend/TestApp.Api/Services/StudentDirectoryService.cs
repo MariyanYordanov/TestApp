@@ -93,6 +93,41 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
         finally { _lock.ExitReadLock(); }
     }
 
+    public StudentLookupResult? FindByNameInClasses(string fullName, IEnumerable<string> classes)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return null;
+        if (classes == null) return null;
+
+        var classSet = new HashSet<string>(classes, StringComparer.Ordinal);
+        if (classSet.Count == 0) return null;
+
+        var normalizedName = NormalizeName(fullName);
+
+        _lock.EnterReadLock();
+        try
+        {
+            if (!_snapshot.IsAvailable) return null;
+
+            // Преглеждаме всички записи и търсим съвпадение в зададените класове
+            foreach (var (_, value) in _snapshot.Entries)
+            {
+                if (!classSet.Contains(value.ClassName)) continue;
+                if (NormalizeName(value.FullName) == normalizedName)
+                    return new StudentLookupResult(value.FullName, value.ClassName);
+            }
+            return null;
+        }
+        finally { _lock.ExitReadLock(); }
+    }
+
+    // Нормализира име: lowercase, trim, collapse whitespace
+    private static string NormalizeName(string name)
+    {
+        var trimmed = name.Trim().ToLowerInvariant();
+        // Заменя множествени интервали с един
+        return System.Text.RegularExpressions.Regex.Replace(trimmed, @"\s+", " ");
+    }
+
     // ---------------------------------------------------------------------
     // CRUD методи — четат, мутират и записват students.json. След запис
     // FileSystemWatcher автоматично презарежда snapshot-а (debounced).

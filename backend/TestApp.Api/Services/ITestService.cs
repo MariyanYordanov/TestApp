@@ -47,4 +47,10 @@ public interface ITestService
 
     // Анулира опит (IsVoided=true) — позволява повторно решаване. Само за собственика на теста.
     Task<bool> VoidAttemptAsync(Guid testId, Guid attemptId, Guid ownerId);
+
+    // Проверява дали ученик с дадено име може да реши теста (class gate + single attempt).
+    // Връща канонизираното име от directory-то ако е разрешено.
+    // Хвърля InvalidOperationException с описателен message при отказ.
+    // Връща null ако тестът не съществува.
+    Task<string?> VerifyParticipantAsync(string shareCode, string fullName);
 }

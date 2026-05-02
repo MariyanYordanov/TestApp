@@ -25,6 +25,9 @@ public class FullTestResponse
     // Дата на създаване
     public DateTime CreatedAt { get; set; }
 
+    // Целеви класове (multi-select). Празно → отворен с линк.
+    public List<string> TargetClasses { get; set; } = new();
+
     // Въпроси с верни отговори
     public List<FullQuestionDto> Questions { get; set; } = new();
 }

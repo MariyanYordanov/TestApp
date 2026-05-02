@@ -40,11 +40,31 @@ public class Test
     // Категории на теста (много-към-много)
     public List<TestCategory> TestCategories { get; set; } = new();
 
-    // Целеви клас (информативно, показва се на ученика) — необязателно
+    // Целеви класове — съхраняваме като comma-separated string в съществуващата
+    // TargetClass колона за да избегнем миграция. Helper методите GetTargetClasses
+    // и SetTargetClasses правят split/join.
+    // Ако е празно/null → тестът е отворен с линка.
+    // Ако има класове → ученикът трябва да е в един от тях (по три имена).
     public string? TargetClass { get; set; }
 
-    // Изисква email gate (opt-in) — само ученици от students.json могат да решават
+    // Deprecated: запазено за избягване на миграция, не се ползва вече.
+    // TargetClasses (multi-class gate) замества този флаг.
     public bool RequireEmailGate { get; set; } = false;
+
+    // Парсва TargetClass като списък (CSV формат). Празно → []
+    public List<string> GetTargetClasses()
+    {
+        if (string.IsNullOrWhiteSpace(TargetClass)) return new List<string>();
+        return TargetClass.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+    }
+
+    // Записва списъка като CSV (без интервали)
+    public void SetTargetClasses(IEnumerable<string>? classes)
+    {
+        TargetClass = classes == null ? null : string.Join(",", classes.Where(c => !string.IsNullOrWhiteSpace(c)));
+        if (string.IsNullOrEmpty(TargetClass)) TargetClass = null;
+    }
 
     // Опити за решаване на теста
     public List<Attempt> Attempts { get; set; } = new();

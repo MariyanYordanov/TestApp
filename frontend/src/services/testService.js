@@ -113,6 +113,16 @@ export async function resolveEmail(shareCode, email) {
     return api.post(`/tests/${shareCode}/resolve-email`, { email }, { skipAuth: true });
 }
 
+// Проверява дали ученик може да реши class-gated тест преди да започне.
+// Връща { fullName: канонично име }; хвърля грешка с описателен message при отказ.
+export async function verifyParticipant(shareCode, participantName) {
+    return api.post(
+        `/tests/${shareCode}/verify-participant`,
+        { participantName },
+        { skipAuth: true }
+    );
+}
+
 // Анулира опит — учителят позволява повторно решаване
 export async function voidAttempt(testId, attemptId) {
     return api.post(`/tests/${testId}/attempts/${attemptId}/void`, {});

@@ -137,51 +137,55 @@ function buildDurationField(state, onStateChange) {
     return wrapper;
 }
 
-// Строи поле за целеви клас (dropdown — информативно, незадължително)
-// При празни classes — показва disabled select
+// Строи multi-select за целеви класове (checkboxes)
+// Ако НЕ е избран нито един клас — тестът е отворен с линка
+// Ако са избрани класове — само ученици от тези класове могат да решават
 function buildTargetClassField(state, onStateChange, classes) {
     const wrapper = document.createElement('div');
-    wrapper.className = 'form-group';
+    wrapper.className = 'form-group target-classes-group';
 
     const labelEl = document.createElement('label');
-    labelEl.htmlFor = 'test-target-class';
-    labelEl.textContent = 'Целеви клас (незадължително)';
+    labelEl.textContent = 'Класове за достъп';
+    wrapper.appendChild(labelEl);
 
-    const selectEl = document.createElement('select');
-    selectEl.id = 'test-target-class';
-    selectEl.className = 'form-input';
+    const help = document.createElement('p');
+    help.className = 'help-text';
+    help.textContent = classes.length === 0
+        ? 'Няма класове в директорията — добавете в страница „Класове".'
+        : 'Ако не изберете никой → тестът е отворен с линка. Ако изберете → само тези класове могат да решават (по три имена).';
+    wrapper.appendChild(help);
 
     if (!classes || classes.length === 0) {
-        selectEl.disabled = true;
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = '— няма класове в директорията —';
-        selectEl.appendChild(placeholder);
-    } else {
-        // Placeholder опция
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = '— не е избран —';
-        selectEl.appendChild(placeholder);
-
-        classes.forEach(cls => {
-            const opt = document.createElement('option');
-            opt.value = cls;
-            opt.textContent = cls;
-            selectEl.appendChild(opt);
-        });
-
-        // Предварително избира стойността от state
-        selectEl.value = state.targetClass ?? '';
-
-        selectEl.addEventListener('change', () => {
-            onStateChange({ ...state, targetClass: selectEl.value || null });
-        });
+        return wrapper;
     }
 
-    wrapper.appendChild(labelEl);
-    wrapper.appendChild(selectEl);
+    const selected = new Set(state.targetClasses ?? []);
 
+    const grid = document.createElement('div');
+    grid.className = 'checkboxes-grid';
+
+    classes.forEach(cls => {
+        const lbl = document.createElement('label');
+        lbl.className = 'checkbox-label';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = cls;
+        cb.checked = selected.has(cls);
+        cb.addEventListener('change', () => {
+            if (cb.checked) selected.add(cls); else selected.delete(cls);
+            onStateChange({ ...state, targetClasses: Array.from(selected) });
+        });
+
+        const span = document.createElement('span');
+        span.textContent = cls;
+
+        lbl.appendChild(cb);
+        lbl.appendChild(span);
+        grid.appendChild(lbl);
+    });
+
+    wrapper.appendChild(grid);
     return wrapper;
 }
 

@@ -52,15 +52,15 @@ function buildTestInfo(test) {
     const info = document.createElement('div');
     info.className = 'test-entry-info';
 
-    // Banner за целеви клас (само когато е зададен)
-    if (test.targetClass) {
+    // Banner за целеви класове — показва ги когато тестът е class-gated
+    const targetClasses = Array.isArray(test.targetClasses) ? test.targetClasses : [];
+    if (targetClasses.length > 0) {
         const banner = document.createElement('div');
         banner.className = 'target-class-banner';
-        banner.setAttribute('data-target-class', test.targetClass);
         const label = document.createElement('span');
-        label.textContent = `Клас: `;
+        label.textContent = targetClasses.length === 1 ? 'Тест за клас: ' : 'Тест за класове: ';
         const value = document.createElement('strong');
-        value.textContent = test.targetClass;
+        value.textContent = targetClasses.join(', ');
         banner.appendChild(label);
         banner.appendChild(value);
         info.appendChild(banner);
@@ -97,7 +97,8 @@ function buildTestInfo(test) {
     return info;
 }
 
-// Форма за въвеждане — с email gate или стандартна (само име)
+// Форма за въвеждане — само пълно име.
+// При class-gated тест backend проверява името срещу класа в students.json.
 function buildForm(test) {
     const form = document.createElement('form');
     form.className = 'test-entry-form';
@@ -107,71 +108,24 @@ function buildForm(test) {
     errorEl.className = 'field-error';
     errorEl.style.display = 'none';
 
-    let emailInput = null;
-    let nameInput = null;
+    const targetClasses = Array.isArray(test.targetClasses) ? test.targetClasses : [];
+    const isClassGated = targetClasses.length > 0;
 
-    if (test.requireEmailGate) {
-        // --- Email gate flow: показва email поле, после попълва името автоматично ---
-        const emailLabel = document.createElement('label');
-        emailLabel.htmlFor = 'participant-email';
-        emailLabel.textContent = 'Имейл адрес';
+    const nameLabel = document.createElement('label');
+    nameLabel.htmlFor = 'participant-name';
+    nameLabel.textContent = isClassGated
+        ? 'Три имена (както са в класовия списък)'
+        : 'Пълно име';
 
-        emailInput = document.createElement('input');
-        emailInput.type = 'email';
-        emailInput.id = 'participant-email';
-        emailInput.name = 'participantEmail';
-        emailInput.placeholder = 'Въведи своя имейл адрес';
-        emailInput.autocomplete = 'email';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.id = 'participant-name';
+    nameInput.name = 'participantName';
+    nameInput.placeholder = 'Иван Петров Иванов';
+    nameInput.autocomplete = 'name';
 
-        // Поле за пълно име (readonly — попълва се автоматично от директорията)
-        const nameLabel = document.createElement('label');
-        nameLabel.htmlFor = 'participant-name';
-        nameLabel.textContent = 'Пълно име';
-
-        nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.id = 'participant-name';
-        nameInput.name = 'participantName';
-        nameInput.readOnly = true;
-        nameInput.className = 'form-input form-input--readonly';
-        nameInput.placeholder = 'Ще се попълни автоматично';
-
-        // При blur на email — автоматично попълва името
-        emailInput.addEventListener('blur', async () => {
-            const emailVal = emailInput.value.trim();
-            if (!emailVal) return;
-            try {
-                const result = await testService.resolveEmail(test.shareCode, emailVal);
-                if (result && result.fullName) {
-                    nameInput.value = result.fullName;
-                    errorEl.style.display = 'none';
-                }
-            } catch {
-                // Не показваме грешка при blur — само при submit
-            }
-        });
-
-        form.appendChild(emailLabel);
-        form.appendChild(emailInput);
-        form.appendChild(nameLabel);
-        form.appendChild(nameInput);
-    } else {
-        // --- Стандартен flow: само пълно име ---
-        const nameLabel = document.createElement('label');
-        nameLabel.htmlFor = 'participant-name';
-        nameLabel.textContent = 'Пълно име';
-
-        nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.id = 'participant-name';
-        nameInput.name = 'participantName';
-        nameInput.placeholder = 'Въведи пълното си име';
-        nameInput.autocomplete = 'name';
-
-        form.appendChild(nameLabel);
-        form.appendChild(nameInput);
-    }
-
+    form.appendChild(nameLabel);
+    form.appendChild(nameInput);
     form.appendChild(errorEl);
 
     const submitBtn = document.createElement('button');
@@ -180,60 +134,17 @@ function buildForm(test) {
     submitBtn.textContent = 'Започни теста';
     form.appendChild(submitBtn);
 
-    // Обработва submit на формата
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (test.requireEmailGate && emailInput) {
-            handleEmailGateSubmit(test.shareCode, emailInput, nameInput, errorEl);
-        } else {
-            handleSubmit(test.shareCode, nameInput, errorEl);
-        }
+        handleSubmit(test.shareCode, nameInput, errorEl, isClassGated);
     });
 
     return form;
 }
 
-// Обработва submit при email gate — проверява имейла в директорията
-async function handleEmailGateSubmit(shareCode, emailInput, nameInput, errorEl) {
-    const email = emailInput.value.trim();
-
-    if (!email) {
-        errorEl.textContent = 'Моля въведи своя имейл адрес.';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    // Ако не е попълнено иметo от auto-resolve — опитваме отново
-    if (!nameInput.value) {
-        try {
-            const result = await testService.resolveEmail(shareCode, email);
-            if (result && result.fullName) {
-                nameInput.value = result.fullName;
-            } else {
-                errorEl.textContent = 'Имейлът не е намерен. Свържете се с учителя си.';
-                errorEl.style.display = 'block';
-                return;
-            }
-        } catch {
-            errorEl.textContent = 'Имейлът не е намерен. Свържете се с учителя си.';
-            errorEl.style.display = 'block';
-            return;
-        }
-    }
-
-    errorEl.style.display = 'none';
-
-    // Записва и пренасочва
-    const storageKey = `testapp_participant_${shareCode}`;
-    sessionStorage.setItem(storageKey, nameInput.value);
-    sessionStorage.setItem(`testapp_email_${shareCode}`, email.toLowerCase());
-
-    const attemptId = `attempt-${Date.now()}`;
-    page.redirect(`/test/${shareCode}/take/${attemptId}`);
-}
-
-// Валидира и обработва submit — записва в sessionStorage и пренасочва
-function handleSubmit(shareCode, input, errorEl) {
+// Валидира и обработва submit. При class-gated тест извиква verify-participant
+// endpoint-а ПРЕДИ redirect, за да даде ясен soft refusal без ученикът да губи време.
+async function handleSubmit(shareCode, input, errorEl, isClassGated) {
     const name = input.value.trim();
 
     if (name.length < 2) {
@@ -248,14 +159,26 @@ function handleSubmit(shareCode, input, errorEl) {
         return;
     }
 
-    // Скрива грешката ако има
+    let canonicalName = name;
+
+    if (isClassGated) {
+        try {
+            const result = await testService.verifyParticipant(shareCode, name);
+            // Канонизираме името от directory-то (точно като в class roster-а)
+            canonicalName = result?.fullName ?? name;
+        } catch (err) {
+            errorEl.textContent = err.message || 'Достъпът е отказан.';
+            errorEl.style.display = 'block';
+            return;
+        }
+    }
+
     errorEl.style.display = 'none';
 
-    // Записва участника в sessionStorage
+    // Записва канонизираното име в sessionStorage за testTakingView
     const storageKey = `testapp_participant_${shareCode}`;
-    sessionStorage.setItem(storageKey, name);
+    sessionStorage.setItem(storageKey, canonicalName);
 
-    // Пренасочва към view-а за решаване на теста
     const attemptId = `attempt-${Date.now()}`;
     page.redirect(`/test/${shareCode}/take/${attemptId}`);
 }

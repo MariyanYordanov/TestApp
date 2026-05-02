@@ -188,6 +188,31 @@ public class TestsController : ControllerBase
         return NoContent();
     }
 
+    // POST api/tests/{shareCode}/verify-participant — проверява дали ученик може да реши теста
+    // (class gate + single-attempt). Връща канонизирано име при успех.
+    [HttpPost("{shareCode}/verify-participant")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyParticipant(string shareCode, [FromBody] VerifyParticipantRequest request)
+    {
+        if (string.IsNullOrEmpty(shareCode) || shareCode.Length != 8
+            || !System.Text.RegularExpressions.Regex.IsMatch(shareCode, @"^[A-Z0-9]{8}$"))
+        {
+            return NotFound(new { error = "Тестът не е намерен." });
+        }
+
+        try
+        {
+            var canonicalName = await _testService.VerifyParticipantAsync(shareCode, request.ParticipantName);
+            if (canonicalName is null)
+                return NotFound(new { error = "Тестът не е намерен." });
+            return Ok(new { fullName = canonicalName });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+    }
+
     // POST api/tests/{shareCode}/attempts — предаване на опит (с rate limiting)
     [HttpPost("{shareCode}/attempts")]
     [AllowAnonymous]
@@ -203,14 +228,22 @@ public class TestsController : ControllerBase
             return NotFound(new { error = "Тестът не е намерен." });
         }
 
-        var result = await _testService.SubmitAttemptAsync(shareCode, request);
-
-        if (result is null)
+        try
         {
-            return NotFound(new { error = "Тестът не е намерен." });
-        }
+            var result = await _testService.SubmitAttemptAsync(shareCode, request);
 
-        return Ok(result);
+            if (result is null)
+            {
+                return NotFound(new { error = "Тестът не е намерен." });
+            }
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Class gate refusal или single-attempt — връщаме 403 с описателен message
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
     }
 
     // GET api/tests/{testId}/attempts/{attemptId} — детайлен преглед на опит (само за собственика)
@@ -293,4 +326,10 @@ public class TestsController : ControllerBase
 public class ResolveEmailRequest
 {
     public string Email { get; set; } = string.Empty;
+}
+
+// DTO за verify-participant заявка
+public class VerifyParticipantRequest
+{
+    public string ParticipantName { get; set; } = string.Empty;
 }

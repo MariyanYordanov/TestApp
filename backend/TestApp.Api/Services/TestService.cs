@@ -143,11 +143,10 @@ public class TestService : ITestService
             ShareCode = shareCode,
             OwnerId = ownerId,
             CreatedAt = DateTime.UtcNow,
-            TargetClass = request.TargetClass,
-            RequireEmailGate = request.RequireEmailGate,
             Questions = questions,
             TestCategories = testCategories
         };
+        test.SetTargetClasses(request.TargetClasses);
 
         _db.Tests.Add(test);
         await _db.SaveChangesAsync();
@@ -162,6 +161,48 @@ public class TestService : ITestService
             CreatedAt = test.CreatedAt,
             ShareCode = test.ShareCode
         };
+    }
+
+    // Проверява дали ученик може да реши class-gated тест преди да го стартира.
+    // Хвърля InvalidOperationException с ясно съобщение при отказ.
+    public async Task<string?> VerifyParticipantAsync(string shareCode, string fullName)
+    {
+        var test = await GetPublishedTestByShareCodeAsync(shareCode);
+        if (test is null) return null;
+
+        var targetClasses = test.GetTargetClasses();
+        if (targetClasses.Count == 0)
+        {
+            // Отворен тест — името се приема както е (с базова валидация)
+            return string.IsNullOrWhiteSpace(fullName) ? null : fullName.Trim();
+        }
+
+        // Class gate активен
+        bool directoryAvailable = _directory?.IsAvailable ?? false;
+        if (!directoryAvailable)
+            throw new InvalidOperationException("Директорията с ученици не е достъпна. Свържете се с учителя си.");
+
+        if (string.IsNullOrWhiteSpace(fullName))
+            throw new InvalidOperationException("Моля въведете трите си имена.");
+
+        var lookupResult = _directory!.FindByNameInClasses(fullName, targetClasses);
+        if (lookupResult is null)
+            throw new InvalidOperationException(
+                $"Не сте в списъка на класовете {string.Join(", ", targetClasses)}. Свържете се с учителя си.");
+
+        // Single-attempt rule
+        var nameKey = lookupResult.FullName.Trim();
+        var existingNames = await _db.Attempts
+            .Where(a => a.TestId == test.Id && !a.IsVoided)
+            .Select(a => a.ParticipantName)
+            .ToListAsync();
+        bool alreadyAttempted = existingNames.Any(n =>
+            string.Equals(n?.Trim(), nameKey, StringComparison.OrdinalIgnoreCase));
+        if (alreadyAttempted)
+            throw new InvalidOperationException(
+                "Вече сте предали този тест. Свържете се с учителя ако смятате, че има грешка.");
+
+        return lookupResult.FullName;
     }
 
     // Помощен метод: зарежда Published тест по shareCode (само за четене)
@@ -191,8 +232,7 @@ public class TestService : ITestService
             Title = test.Title,
             Description = test.Description,
             Duration = test.Duration,
-            TargetClass = test.TargetClass,
-            RequireEmailGate = test.RequireEmailGate,
+            TargetClasses = test.GetTargetClasses(),
             Questions = test.Questions
                 .OrderBy(q => q.OrderIndex)
                 .Select(q => new PublicQuestionDto
@@ -237,6 +277,7 @@ public class TestService : ITestService
             Duration = test.Duration,
             Status = test.Status.ToString(),
             CreatedAt = test.CreatedAt,
+            TargetClasses = test.GetTargetClasses(),
             Questions = test.Questions
                 .OrderBy(q => q.OrderIndex)
                 .Select(q => new FullQuestionDto
@@ -277,39 +318,44 @@ public class TestService : ITestService
             return null;
         }
 
-        // --- Email Gate логика ---
+        // --- Class Gate логика ---
+        // Ако TargetClasses е непразен → тестът е class-gated:
+        //   ученикът трябва да е в един от тези класове по три имена
+        // Ако е празен → тестът е отворен с линка
         string? resolvedParticipantName = request.ParticipantName;
-        string? normalizedEmail = null;
+        var targetClasses = test.GetTargetClasses();
 
-        if (test.RequireEmailGate)
+        if (targetClasses.Count > 0)
         {
-            // Ако директорията не е достъпна — fail-open (пропускаме gate)
             bool directoryAvailable = _directory?.IsAvailable ?? false;
+            if (!directoryAvailable)
+                throw new InvalidOperationException("Директорията с ученици не е достъпна. Свържете се с учителя си.");
 
-            if (directoryAvailable)
-            {
-                // Изискваме имейл
-                if (string.IsNullOrWhiteSpace(request.ParticipantEmail))
-                    return null;
+            if (string.IsNullOrWhiteSpace(request.ParticipantName))
+                throw new InvalidOperationException("Моля въведете трите си имена.");
 
-                normalizedEmail = request.ParticipantEmail.Trim().ToLowerInvariant();
+            // Търсим ученика по име в зададените класове
+            var lookupResult = _directory!.FindByNameInClasses(request.ParticipantName, targetClasses);
+            if (lookupResult is null)
+                throw new InvalidOperationException(
+                    $"Не сте в списъка на класовете {string.Join(", ", targetClasses)}. Свържете се с учителя си.");
 
-                // Търсим ученика в директорията
-                var lookupResult = _directory!.FindByEmail(normalizedEmail);
-                if (lookupResult is null)
-                    return null;
+            // Канонизираме името от директорията (за consistent storage)
+            resolvedParticipantName = lookupResult.FullName;
 
-                // Override ParticipantName от директорията
-                resolvedParticipantName = lookupResult.FullName;
+            // Single-attempt rule — case-insensitive сравнение с кирилица в .NET memory
+            // (SQLite LOWER() не работи правилно за non-ASCII)
+            var nameKey = resolvedParticipantName.Trim();
+            var existingNames = await _db.Attempts
+                .Where(a => a.TestId == test.Id && !a.IsVoided)
+                .Select(a => a.ParticipantName)
+                .ToListAsync();
 
-                // Проверяваме за съществуващ non-voided опит (single-attempt enforcement)
-                bool alreadyAttempted = await _db.Attempts
-                    .AnyAsync(a => a.TestId == test.Id
-                                && a.ParticipantEmail == normalizedEmail
-                                && !a.IsVoided);
-                if (alreadyAttempted)
-                    return null;
-            }
+            bool alreadyAttempted = existingNames.Any(n =>
+                string.Equals(n?.Trim(), nameKey, StringComparison.OrdinalIgnoreCase));
+            if (alreadyAttempted)
+                throw new InvalidOperationException(
+                    "Вече сте предали този тест. Свържете се с учителя ако смятате, че има грешка.");
         }
 
         // Изчислява резултата и записва AttemptAnswers
@@ -409,8 +455,8 @@ public class TestService : ITestService
         var attempt = new Attempt
         {
             Id = Guid.NewGuid(),
-            ParticipantName = resolvedParticipantName,
-            ParticipantEmail = normalizedEmail,
+            ParticipantName = resolvedParticipantName ?? request.ParticipantName,
+            ParticipantEmail = null,  // премахнат email gate, не пазим email вече
             Score = score,
             TotalQuestions = maxScore,   // Съхраняваме MaxScore в TotalQuestions за обратна съвместимост
             TestId = test.Id,
@@ -504,6 +550,7 @@ public class TestService : ITestService
         test.Title = request.Title;
         test.Description = request.Description;
         test.Duration = request.Duration;
+        test.SetTargetClasses(request.TargetClasses);
 
         // Валидира новите категории преди да започнем промените
         var categoryGuids = request.CategoryIds

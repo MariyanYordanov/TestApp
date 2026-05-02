@@ -23,6 +23,10 @@ public interface IStudentDirectoryService
     // Връща null ако не е намерен или директорията не е достъпна
     StudentLookupResult? FindByEmail(string email);
 
+    // Търси ученик по три имена в посочените класове (case-insensitive, trimmed,
+    // нормализирани whitespace). Връща null ако не е намерен в нито един клас.
+    StudentLookupResult? FindByNameInClasses(string fullName, IEnumerable<string> classes);
+
     // Връща всички класове с учениците им (за UI таблица)
     IReadOnlyList<ClassWithStudents> GetAllClassesWithStudents();
 

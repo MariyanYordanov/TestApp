@@ -24,8 +24,7 @@ function createInitialState() {
         title: '',
         description: '',
         durationMinutes: DURATION_DEFAULT_MINUTES,
-        targetClass: null,
-        requireEmailGate: false,
+        targetClasses: [],
         categoryIds: [],
         questions: [],
     };
@@ -38,8 +37,7 @@ function mapTestToState(test) {
         title: test.title ?? '',
         description: test.description ?? '',
         durationMinutes: Math.max(1, Math.round((test.duration ?? 1800) / 60)),
-        targetClass: test.targetClass ?? null,
-        requireEmailGate: test.requireEmailGate ?? false,
+        targetClasses: Array.isArray(test.targetClasses) ? test.targetClasses : [],
         categoryIds: Array.isArray(test.categories)
             ? test.categories.map(c => c.id)
             : (test.categoryIds ?? []),

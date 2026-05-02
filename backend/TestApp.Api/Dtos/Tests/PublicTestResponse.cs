@@ -16,11 +16,9 @@ public class PublicTestResponse
     // Продължителност в секунди
     public int Duration { get; set; }
 
-    // Целеви клас (информативно — показва се на ученика)
-    public string? TargetClass { get; set; }
-
-    // Изисква email gate (за да знае UI дали да покаже email поле)
-    public bool RequireEmailGate { get; set; }
+    // Целеви класове. Ако списъкът е непразен → тестът е class-gated:
+    // ученикът трябва да е в един от тези класове (по три имена).
+    public List<string> TargetClasses { get; set; } = new();
 
     // Въпроси (БЕЗ информация за верни отговори)
     public List<PublicQuestionDto> Questions { get; set; } = new();
