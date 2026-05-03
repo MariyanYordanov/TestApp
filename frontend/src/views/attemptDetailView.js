@@ -22,6 +22,7 @@ export async function showAttemptDetail(ctx) {
         }
         main.replaceChildren(buildPage(detail, testId, attemptId));
         attachGradeHandler(main, testId, attemptId);
+        attachNotifyHandler(main, testId, attemptId);
     } catch (err) {
         const errorEl = document.createElement('div');
         errorEl.className = 'error';
@@ -68,6 +69,14 @@ function buildPage(detail, testId, attemptId) {
         header.appendChild(gradeBtn);
     }
 
+    // Email бутон — праща резултата на ученика по email
+    const notifyBtn = document.createElement('button');
+    notifyBtn.className = 'btn btn-secondary notify-btn';
+    notifyBtn.textContent = '📧 Изпрати резултат';
+    notifyBtn.dataset.testId = testId;
+    notifyBtn.dataset.attemptId = attemptId;
+    header.appendChild(notifyBtn);
+
     wrapper.appendChild(header);
 
     // Въпроси
@@ -101,6 +110,31 @@ function attachGradeHandler(main, testId, attemptId) {
             showToast(`Грешка при проверка: ${err.message}`, 'error');
             btn.disabled = false;
             btn.textContent = 'Провери с AI';
+        }
+    });
+}
+
+function attachNotifyHandler(main, testId, attemptId) {
+    const btn = main.querySelector('.notify-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+        if (!confirm('Изпращане на email с резултата към ученика?')) return;
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Изпращане...';
+        try {
+            const result = await testService.notifyAttempt(testId, attemptId);
+            showToast(
+                `Email изпратен до ${result.recipient ?? 'ученика'}.`,
+                'success'
+            );
+            btn.textContent = '✓ Изпратен';
+            // Оставяме disabled — учителят може да рефрешне ако иска да изпрати пак
+        } catch (err) {
+            showToast(`Грешка: ${err.message}`, 'error');
+            btn.disabled = false;
+            btn.textContent = original;
         }
     });
 }

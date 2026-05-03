@@ -95,6 +95,9 @@ public static class ServiceCollectionExtensions
         }
         // else: не регистрираме нищо — TestService.GradeAttemptAsync ще маркира Failed
 
+        // SMTP email service за изпращане на резултати към ученици
+        services.AddSingleton<ISmtpEmailService, SmtpEmailService>();
+
         // Конфигурира CORS политика
         services.AddCors(options =>
         {

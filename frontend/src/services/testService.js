@@ -128,6 +128,16 @@ export async function voidAttempt(testId, attemptId) {
     return api.post(`/tests/${testId}/attempts/${attemptId}/void`, {});
 }
 
+// Изпраща email с резултата на конкретен ученик
+export async function notifyAttempt(testId, attemptId) {
+    return api.post(`/tests/${testId}/attempts/${attemptId}/notify`, {});
+}
+
+// Изпраща email на всички ученици с оценени опити (bulk)
+export async function notifyAll(testId) {
+    return api.post(`/tests/${testId}/notify-all`, {});
+}
+
 // ---------------------------------------------------------------------------
 // Класове и ученици (CRUD на students.json)
 // ---------------------------------------------------------------------------

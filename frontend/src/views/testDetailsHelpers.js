@@ -141,6 +141,14 @@ export function buildSummaryCard(test, attempts) {
         actionsBar.appendChild(restoreBtn);
     }
 
+    // Bulk email — само за Published тест с поне 1 опит
+    if (test.status === 'Published' && attempts.length > 0) {
+        const notifyAllBtn = document.createElement('button');
+        notifyAllBtn.className = 'btn btn-secondary notify-all-btn';
+        notifyAllBtn.textContent = `📧 Изпрати на всички (${attempts.length})`;
+        actionsBar.appendChild(notifyAllBtn);
+    }
+
     if (actionsBar.children.length > 0) card.appendChild(actionsBar);
 
     // Ако няма нищо за показване — върни null

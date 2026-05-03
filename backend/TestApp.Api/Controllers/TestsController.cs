@@ -15,11 +15,16 @@ public class TestsController : ControllerBase
 {
     private readonly ITestService _testService;
     private readonly IStudentDirectoryService _studentDirectory;
+    private readonly ISmtpEmailService _emailService;
 
-    public TestsController(ITestService testService, IStudentDirectoryService studentDirectory)
+    public TestsController(
+        ITestService testService,
+        IStudentDirectoryService studentDirectory,
+        ISmtpEmailService emailService)
     {
         _testService = testService;
         _studentDirectory = studentDirectory;
+        _emailService = emailService;
     }
 
     // GET api/tests/classes — списък с класове от students.json (за dropdown в wizard-а)
@@ -311,6 +316,125 @@ public class TestsController : ControllerBase
             return NotFound(new { error = "Опитът не е намерен." });
 
         return Ok(new { message = "Опитът е анулиран. Ученикът може да предаде отново." });
+    }
+
+    // POST api/tests/{testId}/attempts/{attemptId}/notify — изпраща email с резултата
+    // на ученика (по email от students.json при class-gated тестове)
+    [HttpPost("{testId:guid}/attempts/{attemptId:guid}/notify")]
+    [Authorize]
+    public async Task<IActionResult> NotifyAttempt(Guid testId, Guid attemptId)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        if (!_emailService.IsConfigured)
+            return BadRequest(new { error = "SMTP не е конфигуриран. Настройте Smtp:* в appsettings." });
+
+        var detail = await _testService.GetAttemptDetailAsync(testId, attemptId, ownerId);
+        if (detail is null)
+            return NotFound(new { error = "Опитът не е намерен." });
+
+        var test = await _testService.GetFullTestAsync(testId, ownerId);
+        if (test is null)
+            return NotFound(new { error = "Тестът не е намерен." });
+
+        // Намираме email на ученика през директорията (class-gated case)
+        var studentEmail = ResolveStudentEmail(detail.ParticipantName, test.TargetClasses);
+        if (string.IsNullOrWhiteSpace(studentEmail))
+            return BadRequest(new
+            {
+                error = "Не може да се намери email на ученика. Тестът трябва да е class-gated " +
+                        "и името да съвпада с ученик в students.json."
+            });
+
+        // Подготвяме съдържанието
+        var fromName = User.FindFirst("fullName")?.Value ?? User.Identity?.Name ?? "Учителят";
+        var content = ResultEmailComposer.Compose(test.Title, detail, fromName);
+
+        try
+        {
+            await _emailService.SendAsync(studentEmail, content.Subject, content.Body);
+            return Ok(new
+            {
+                sent = true,
+                recipient = studentEmail,
+                message = "Email-ът е изпратен успешно."
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                error = $"SMTP грешка: {ex.Message}"
+            });
+        }
+    }
+
+    // POST api/tests/{testId}/notify-all — изпраща email на ВСИЧКИ ученици с
+    // оценени опити. Връща обобщение (sent/failed counts).
+    [HttpPost("{testId:guid}/notify-all")]
+    [Authorize]
+    public async Task<IActionResult> NotifyAll(Guid testId)
+    {
+        if (!TryGetCurrentUserId(out Guid ownerId))
+            return Unauthorized(new { error = "Невалиден токен." });
+
+        if (!_emailService.IsConfigured)
+            return BadRequest(new { error = "SMTP не е конфигуриран." });
+
+        var test = await _testService.GetFullTestAsync(testId, ownerId);
+        if (test is null)
+            return NotFound(new { error = "Тестът не е намерен." });
+
+        var attempts = await _testService.GetAttemptsByTestAsync(testId, ownerId);
+        if (attempts == null || attempts.Count == 0)
+            return Ok(new { sent = 0, failed = 0, skipped = 0, message = "Няма опити за изпращане." });
+
+        var fromName = User.FindFirst("fullName")?.Value ?? User.Identity?.Name ?? "Учителят";
+
+        int sent = 0, failed = 0, skipped = 0;
+        var errors = new List<string>();
+
+        foreach (var summary in attempts)
+        {
+            // Скип-ваме voided опити
+            if (summary.IsVoided) { skipped++; continue; }
+
+            var studentEmail = ResolveStudentEmail(summary.ParticipantName, test.TargetClasses);
+            if (string.IsNullOrWhiteSpace(studentEmail))
+            {
+                skipped++;
+                errors.Add($"{summary.ParticipantName}: не е намерен email");
+                continue;
+            }
+
+            var detail = await _testService.GetAttemptDetailAsync(testId, summary.Id, ownerId);
+            if (detail is null) { skipped++; continue; }
+
+            var content = ResultEmailComposer.Compose(test.Title, detail, fromName);
+            try
+            {
+                await _emailService.SendAsync(studentEmail, content.Subject, content.Body);
+                sent++;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                errors.Add($"{summary.ParticipantName} ({studentEmail}): {ex.Message}");
+            }
+        }
+
+        return Ok(new { sent, failed, skipped, errors });
+    }
+
+    // Помощник: намира email на ученик по три имена в targetClasses
+    private string? ResolveStudentEmail(string participantName, List<string> targetClasses)
+    {
+        if (string.IsNullOrWhiteSpace(participantName)) return null;
+        if (targetClasses == null || targetClasses.Count == 0) return null;
+
+        var found = _studentDirectory.FindByNameInClasses(participantName, targetClasses);
+        return found?.Email;
     }
 
     // Опитва да извлече userId от JWT токена — връща false ако липсва claim

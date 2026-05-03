@@ -64,6 +64,7 @@ export async function showTestDetails(ctx) {
         attachArchiveHandler(main, test, ctx);
         attachRestoreHandler(main, test, ctx);
         attachCopyHandler(main, test.shareCode);
+        attachNotifyAllHandler(main, test);
 
     } catch (err) {
         const errorEl = document.createElement('div');
@@ -129,6 +130,41 @@ function attachRestoreHandler(main, test, ctx) {
         } catch (err) {
             showToast(`Грешка при възстановяване: ${err.message}`, 'error');
             restoreBtn.disabled = false;
+        }
+    });
+}
+
+// Закача handler за bulk email бутон
+function attachNotifyAllHandler(main, test) {
+    const btn = main.querySelector('.notify-all-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+        if (!confirm(
+            'Изпращане на email с резултата към ВСИЧКИ ученици.\n' +
+            'Само class-gated тестове работят (трябва ученикът да е в students.json).\n\n' +
+            'Продължи?'
+        )) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Изпращане...';
+        try {
+            const result = await testService.notifyAll(test.id);
+            const parts = [];
+            if (result.sent)    parts.push(`Изпратени: ${result.sent}`);
+            if (result.skipped) parts.push(`Пропуснати: ${result.skipped}`);
+            if (result.failed)  parts.push(`Грешки: ${result.failed}`);
+            const summary = parts.join(' • ') || 'Няма опити за изпращане.';
+            showToast(summary, result.failed ? 'error' : 'success');
+
+            if (result.errors && result.errors.length > 0) {
+                console.warn('Email грешки:', result.errors);
+            }
+            btn.textContent = `✓ Готово (${result.sent} изпратени)`;
+        } catch (err) {
+            showToast(`Грешка: ${err.message}`, 'error');
+            btn.disabled = false;
+            btn.textContent = `📧 Изпрати на всички`;
         }
     });
 }

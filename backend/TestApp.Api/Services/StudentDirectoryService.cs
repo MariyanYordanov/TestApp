@@ -87,7 +87,7 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
         {
             if (!_snapshot.IsAvailable) return null;
             if (_snapshot.Entries.TryGetValue(normalized, out var found))
-                return new StudentLookupResult(found.FullName, found.ClassName);
+                return new StudentLookupResult(normalized, found.FullName, found.ClassName);
             return null;
         }
         finally { _lock.ExitReadLock(); }
@@ -109,11 +109,11 @@ public class StudentDirectoryService : IStudentDirectoryService, IDisposable
             if (!_snapshot.IsAvailable) return null;
 
             // Преглеждаме всички записи и търсим съвпадение в зададените класове
-            foreach (var (_, value) in _snapshot.Entries)
+            foreach (var (email, value) in _snapshot.Entries)
             {
                 if (!classSet.Contains(value.ClassName)) continue;
                 if (NormalizeName(value.FullName) == normalizedName)
-                    return new StudentLookupResult(value.FullName, value.ClassName);
+                    return new StudentLookupResult(email, value.FullName, value.ClassName);
             }
             return null;
         }

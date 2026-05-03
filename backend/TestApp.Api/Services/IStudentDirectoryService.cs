@@ -2,8 +2,9 @@
 // Интерфейс за достъп до директорията с ученици (students.json)
 namespace TestApp.Api.Services;
 
-// Резултат от намирането на ученик по имейл
-public record StudentLookupResult(string FullName, string ClassName);
+// Резултат от намирането на ученик (по имейл или име).
+// Email-ът се ползва за изпращане на резултат към ученика.
+public record StudentLookupResult(string Email, string FullName, string ClassName);
 
 // Запис за ученик (за списъци)
 public record StudentRecord(string Email, string FullName);
