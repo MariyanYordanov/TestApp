@@ -58,7 +58,7 @@ public class TestServiceTargetClassTests : IDisposable
         {
             Title = "Тест с клас",
             Description = "Описание",
-            TargetClass = "9А",
+            TargetClasses = new List<string> { "9А" },
             Questions = new List<CreateQuestionDto>
             {
                 new()
@@ -95,7 +95,7 @@ public class TestServiceTargetClassTests : IDisposable
         {
             Title = "Тест без клас",
             Description = "Описание",
-            TargetClass = null,
+            TargetClasses = new List<string>(),
             Questions = new List<CreateQuestionDto>
             {
                 new()
@@ -120,9 +120,9 @@ public class TestServiceTargetClassTests : IDisposable
         saved.TargetClass.Should().BeNull();
     }
 
-    // Test.RequireEmailGate се запазва в базата данни
+    // Multi-class TargetClasses се запазват като CSV в TargetClass колоната
     [Fact]
-    public async Task CreateTestAsync_WithRequireEmailGate_Persists()
+    public async Task CreateTestAsync_WithMultipleTargetClasses_PersistsAsCsv()
     {
         // Arrange
         await SeedUserAsync();
@@ -130,9 +130,9 @@ public class TestServiceTargetClassTests : IDisposable
 
         var request = new CreateTestRequest
         {
-            Title = "Тест с email gate",
+            Title = "Тест за два класа",
             Description = "Описание",
-            RequireEmailGate = true,
+            TargetClasses = new List<string> { "9А", "9Б" },
             Questions = new List<CreateQuestionDto>
             {
                 new()
@@ -152,50 +152,14 @@ public class TestServiceTargetClassTests : IDisposable
         // Act
         var result = await service.CreateTestAsync(request, _ownerId);
 
-        // Assert — RequireEmailGate е запазен
+        // Assert — записани като CSV, четат се обратно като списък
         var saved = db.Tests.First(t => t.Id == result.Id);
-        saved.RequireEmailGate.Should().BeTrue();
+        saved.GetTargetClasses().Should().BeEquivalentTo(new[] { "9А", "9Б" });
     }
 
-    // RequireEmailGate default е false
+    // TargetClasses се включва в PublicTestResponse
     [Fact]
-    public async Task CreateTestAsync_WithoutRequireEmailGate_DefaultsFalse()
-    {
-        // Arrange
-        await SeedUserAsync();
-        var (service, db) = CreateService();
-
-        var request = new CreateTestRequest
-        {
-            Title = "Тест без gate",
-            Description = "Описание",
-            Questions = new List<CreateQuestionDto>
-            {
-                new()
-                {
-                    Text = "Въпрос?",
-                    Type = "Closed",
-                    Points = 1,
-                    Answers = new List<CreateAnswerDto>
-                    {
-                        new() { Text = "Верен", IsCorrect = true },
-                        new() { Text = "Грешен", IsCorrect = false }
-                    }
-                }
-            }
-        };
-
-        // Act
-        var result = await service.CreateTestAsync(request, _ownerId);
-
-        // Assert — RequireEmailGate е false по подразбиране
-        var saved = db.Tests.First(t => t.Id == result.Id);
-        saved.RequireEmailGate.Should().BeFalse();
-    }
-
-    // TargetClass се включва в PublicTestResponse
-    [Fact]
-    public async Task GetPublicTestAsync_ReturnsTargetClass()
+    public async Task GetPublicTestAsync_ReturnsTargetClasses()
     {
         // Arrange
         await SeedUserAsync();
@@ -210,7 +174,7 @@ public class TestServiceTargetClassTests : IDisposable
             Status = TestStatus.Published,
             ShareCode = "TRGCLS01",
             OwnerId = _ownerId,
-            TargetClass = "10Б",
+            TargetClass = "10Б",  // single class в CSV формат
             Questions = new List<Question>
             {
                 new()
@@ -237,6 +201,6 @@ public class TestServiceTargetClassTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result!.TargetClass.Should().Be("10Б");
+        result!.TargetClasses.Should().BeEquivalentTo(new[] { "10Б" });
     }
 }

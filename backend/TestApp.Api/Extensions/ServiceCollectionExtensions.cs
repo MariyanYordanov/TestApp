@@ -77,7 +77,8 @@ public static class ServiceCollectionExtensions
         });
 
         // Регистрира AI оценяващата услуга според конфигурирания provider
-        // Default е Groq; ако няма наличен ключ — не регистрираме (TestService ще маркира Failed)
+        // Опции: "Groq" (default, безплатен cloud), "Anthropic" (платен Claude),
+        //        "Ollama" (локален сървър, изисква http://localhost:11434)
         var provider = config["AiGrading:Provider"] ?? "Groq";
         if (provider == "Groq" && !string.IsNullOrEmpty(config["Groq:ApiKey"]))
         {
@@ -86,6 +87,11 @@ public static class ServiceCollectionExtensions
         else if (provider == "Anthropic" && !string.IsNullOrEmpty(config["Anthropic:ApiKey"]))
         {
             services.AddHttpClient<IAiGradingService, AnthropicGradingService>();
+        }
+        else if (provider == "Ollama")
+        {
+            // Ollama не изисква API key — само BaseUrl (default http://localhost:11434)
+            services.AddHttpClient<IAiGradingService, OllamaGradingService>();
         }
         // else: не регистрираме нищо — TestService.GradeAttemptAsync ще маркира Failed
 

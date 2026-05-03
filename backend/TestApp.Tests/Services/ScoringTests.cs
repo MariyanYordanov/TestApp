@@ -193,7 +193,8 @@ public class ScoringTests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result!.Score.Should().Be(5);
-        result.TotalQuestions.Should().Be(5); // TotalQuestions = MaxScore
+        result.MaxScore.Should().Be(5);
+        result.TotalQuestions.Should().Be(1); // 1 въпрос с 5 точки
     }
 
     [Fact]
@@ -315,7 +316,8 @@ public class ScoringTests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result!.Score.Should().Be(1); // max(0, 2-1) = 1
-        result.TotalQuestions.Should().Be(3); // MaxScore = 3
+        result.MaxScore.Should().Be(3);
+        result.TotalQuestions.Should().Be(1);
     }
 
     [Fact]
@@ -583,7 +585,8 @@ public class ScoringTests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result!.Score.Should().Be(6);        // 5 (closed) + 1 (multi partial)
-        result.TotalQuestions.Should().Be(8); // MaxScore = 5 + 3 (без Open)
+        result.MaxScore.Should().Be(11);     // 5 + 3 + 3 (Open включен в maxScore)
+        result.TotalQuestions.Should().Be(3); // 3 въпроса
     }
 
     // -------------------------------------------------------------------
@@ -990,7 +993,8 @@ public class ScoringTests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result!.Score.Should().Be(5);
-        result.TotalQuestions.Should().Be(10); // MaxScore = 10
+        result.MaxScore.Should().Be(10);
+        result.TotalQuestions.Should().Be(2); // 2 въпроса
         result.Percent.Should().Be(50.0);
     }
 }
