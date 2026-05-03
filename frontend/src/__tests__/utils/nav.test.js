@@ -73,7 +73,7 @@ describe('buildNavList() — активен елемент', () => {
     it('съдържа всички навигационни елементи', () => {
         const ul = buildNavList('/dashboard');
         const items = ul.querySelectorAll('.nav-item');
-        expect(items.length).toBe(4);
+        expect(items.length).toBe(5);
     });
 
     it('маркира /categories като active', () => {

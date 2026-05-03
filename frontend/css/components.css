@@ -1272,3 +1272,43 @@ textarea.form-input {
     background: #fef9c3;
     border-left-color: #ca8a04;
 }
+
+/* AI score прозрачност в attempt detail */
+.aq-points {
+    margin-left: auto;
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+}
+
+.aq-score-bar {
+    height: 8px;
+    background: var(--color-border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.aq-score-bar-fill {
+    height: 100%;
+    transition: width 0.3s;
+}
+.aq-score-bar-fill.level-full    { background: #16a34a; }
+.aq-score-bar-fill.level-partial { background: #eab308; }
+.aq-score-bar-fill.level-low     { background: #f97316; }
+.aq-score-bar-fill.level-zero    { background: #dc2626; }
+
+.aq-verdict.verdict-partial {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.aq-ai-feedback-text {
+    margin: 0.25rem 0 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+}

@@ -294,52 +294,44 @@ describe('renderStepTitle — показване на грешки', () => {
 // renderStepTitle — TargetClass dropdown
 // ---------------------------------------------------------------------------
 
-describe('renderStepTitle — TargetClass dropdown (Commit 1)', () => {
-    it('не рендира dropdown когато classes е празен масив', () => {
-        const state = { title: 'Тест', description: 'Описание', targetClass: null };
+describe('renderStepTitle — TargetClasses multi-select', () => {
+    it('не рендира checkboxes когато classes е празен масив', () => {
+        const state = { title: 'Тест', description: 'Описание', targetClasses: [] };
         const el = renderStepTitle(state, vi.fn(), [], []);
-        const select = el.querySelector('#test-target-class');
-        // При празни класове — или няма select, или е disabled
-        if (select) {
-            expect(select.disabled).toBe(true);
-        } else {
-            expect(select).toBeNull();
-        }
+        const grid = el.querySelector('.checkboxes-grid');
+        expect(grid).toBeNull();
     });
 
-    it('рендира dropdown с опциите когато classes не е празен', () => {
-        const state = { title: 'Тест', description: 'Описание', targetClass: null };
+    it('рендира checkbox за всеки клас', () => {
+        const state = { title: 'Тест', description: 'Описание', targetClasses: [] };
         const classes = ['9А', '9Б', '10А'];
         const el = renderStepTitle(state, vi.fn(), [], classes);
-        const select = el.querySelector('#test-target-class');
-        expect(select).not.toBeNull();
-        expect(select.disabled).toBe(false);
-        // Проверяваме дали опциите са налице
-        const options = Array.from(select.options).map(o => o.value);
-        expect(options).toContain('9А');
-        expect(options).toContain('10А');
+        const checkboxes = el.querySelectorAll('.checkboxes-grid input[type="checkbox"]');
+        expect(checkboxes).toHaveLength(3);
+        const values = Array.from(checkboxes).map(c => c.value);
+        expect(values).toEqual(['9А', '9Б', '10А']);
     });
 
-    it('предварително избира targetClass от state', () => {
-        const state = { title: 'Тест', description: 'Описание', targetClass: '9Б' };
+    it('предварително избира класовете от state.targetClasses', () => {
+        const state = { title: 'Тест', description: 'Описание', targetClasses: ['9Б', '10А'] };
         const classes = ['9А', '9Б', '10А'];
         const el = renderStepTitle(state, vi.fn(), [], classes);
-        const select = el.querySelector('#test-target-class');
-        expect(select).not.toBeNull();
-        expect(select.value).toBe('9Б');
+        const checkboxes = el.querySelectorAll('.checkboxes-grid input[type="checkbox"]');
+        const checked = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+        expect(checked).toEqual(['9Б', '10А']);
     });
 
-    it('промяна на dropdown извиква onStateChange с новия targetClass (immutable)', () => {
+    it('checkbox change извиква onStateChange с обновен targetClasses (immutable)', () => {
         const onStateChange = vi.fn();
-        const state = { title: 'Тест', description: 'Описание', targetClass: null };
+        const state = { title: 'Тест', description: 'Описание', targetClasses: [] };
         const classes = ['9А', '9Б'];
         const el = renderStepTitle(state, onStateChange, [], classes);
-        const select = el.querySelector('#test-target-class');
-        select.value = '9А';
-        select.dispatchEvent(new Event('change'));
+        const cb = el.querySelector('.checkboxes-grid input[value="9А"]');
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change'));
         expect(onStateChange).toHaveBeenCalled();
         const newState = onStateChange.mock.calls[0][0];
-        expect(newState).not.toBe(state); // immutable
-        expect(newState.targetClass).toBe('9А');
+        expect(newState).not.toBe(state);
+        expect(newState.targetClasses).toEqual(['9А']);
     });
 });

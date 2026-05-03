@@ -17,8 +17,14 @@ export function buildQuestionDetailCard(question) {
     verdict.className = `aq-verdict ${getVerdictClass(question)}`;
     verdict.textContent = getVerdictText(question);
 
+    // Точки — винаги показваме earned/max
+    const points = document.createElement('span');
+    points.className = 'aq-points';
+    points.textContent = `${getPointsEarned(question)} / ${question.points} т.`;
+
     header.appendChild(typeTag);
     header.appendChild(verdict);
+    header.appendChild(points);
     card.appendChild(header);
 
     const questionText = document.createElement('p');
@@ -92,23 +98,31 @@ function buildOpenAnswerSection(question) {
         section.appendChild(sample);
     }
 
-    if (question.gradingStatus === 'Graded' && question.aiFeedback) {
+    if (question.gradingStatus === 'Graded') {
         const feedback = document.createElement('div');
         feedback.className = 'aq-ai-feedback';
+
         const fLabel = document.createElement('span');
         fLabel.className = 'aq-label';
-        fLabel.textContent = 'AI оценка:';
-        const fText = document.createElement('p');
-        fText.textContent = question.aiFeedback;
+        fLabel.textContent = `AI оценка: ${question.aiScore} / ${question.points} т.`;
         feedback.appendChild(fLabel);
-        feedback.appendChild(fText);
+
+        // Progress bar за визуализация
+        feedback.appendChild(buildScoreBar(question.aiScore ?? 0, question.points));
+
+        if (question.aiFeedback) {
+            const fText = document.createElement('p');
+            fText.className = 'aq-ai-feedback-text';
+            fText.textContent = question.aiFeedback;
+            feedback.appendChild(fText);
+        }
         section.appendChild(feedback);
     }
 
     if (question.gradingStatus === 'Failed') {
         const err = document.createElement('p');
         err.className = 'aq-grading-error';
-        err.textContent = 'Автоматичната проверка не успя.';
+        err.textContent = 'Автоматичната проверка не успя. Натиснете „Провери с AI" отново.';
         section.appendChild(err);
     }
 
@@ -122,10 +136,42 @@ function buildOpenAnswerSection(question) {
     return section;
 }
 
+// Progress bar за визуално показване на AI score спрямо max points
+function buildScoreBar(score, max) {
+    const bar = document.createElement('div');
+    bar.className = 'aq-score-bar';
+    const fill = document.createElement('div');
+    fill.className = `aq-score-bar-fill ${getScoreLevel(score, max)}`;
+    const ratio = max > 0 ? Math.min(100, Math.max(0, (score / max) * 100)) : 0;
+    fill.style.width = `${ratio}%`;
+    bar.appendChild(fill);
+    return bar;
+}
+
+// Определя нивото на оценката за оцветяване (зелено/жълто/червено)
+function getScoreLevel(score, max) {
+    if (max <= 0) return 'level-zero';
+    const ratio = score / max;
+    if (ratio >= 1) return 'level-full';
+    if (ratio >= 0.5) return 'level-partial';
+    if (ratio > 0) return 'level-low';
+    return 'level-zero';
+}
+
+// Точки получени за този въпрос
+function getPointsEarned(question) {
+    if (typeof question.pointsEarned === 'number') return question.pointsEarned;
+    // Fallback за стари AttemptDetailResponse-и без pointsEarned
+    if (!question.scorable) {
+        return question.gradingStatus === 'Graded' ? (question.aiScore ?? 0) : 0;
+    }
+    return question.isCorrect ? question.points : 0;
+}
+
 function getCardClass(question) {
     if (!question.scorable) {
         if (question.gradingStatus === 'Graded') {
-            return question.aiScore > 0 ? 'verdict-correct' : 'verdict-incorrect';
+            return getScoreVerdictClass(question.aiScore ?? 0, question.points);
         }
         return 'verdict-pending';
     }
@@ -137,16 +183,33 @@ function getCardClass(question) {
 function getVerdictClass(question) {
     if (!question.scorable) {
         if (question.gradingStatus === 'Graded') {
-            return question.aiScore > 0 ? 'verdict-correct' : 'verdict-incorrect';
+            return getScoreVerdictClass(question.aiScore ?? 0, question.points);
         }
         return 'verdict-pending';
     }
     return question.isCorrect ? 'verdict-correct' : 'verdict-incorrect';
 }
 
+// Закрити въпроси: бинарно. Open/Code с AI: 3 нива (пълно/частично/грешно).
+function getScoreVerdictClass(score, max) {
+    if (max <= 0) return 'verdict-incorrect';
+    const ratio = score / max;
+    if (ratio >= 1) return 'verdict-correct';
+    if (ratio > 0) return 'verdict-partial';
+    return 'verdict-incorrect';
+}
+
 function getVerdictText(question) {
     if (!question.scorable) {
-        if (question.gradingStatus === 'Graded') return question.aiScore > 0 ? '+ Вярно (AI)' : 'x Грешно (AI)';
+        if (question.gradingStatus === 'Graded') {
+            const s = question.aiScore ?? 0;
+            const max = question.points ?? 0;
+            if (max <= 0) return 'x Грешно';
+            const ratio = s / max;
+            if (ratio >= 1) return '+ Вярно';
+            if (ratio > 0) return '~ Частично';
+            return 'x Грешно';
+        }
         if (question.gradingStatus === 'Pending') return '... Изчаква проверка';
         if (question.gradingStatus === 'Failed') return '! Грешка при проверка';
         return '-';

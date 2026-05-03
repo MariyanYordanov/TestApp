@@ -223,11 +223,11 @@ describe('testEntryView.js — валидация на форма', () => {
 // TargetClass banner — Commit 1
 // ---------------------------------------------------------------------------
 
-describe('testEntryView.js — TargetClass banner', () => {
-    it('показва banner с targetClass когато е зададен', async () => {
+describe('testEntryView.js — TargetClasses banner', () => {
+    it('показва banner с класовете когато targetClasses не е празен', async () => {
         vi.clearAllMocks();
         page.redirect.mockReset();
-        const testWithClass = { ...MOCK_PUBLIC_TEST, targetClass: '9А', requireEmailGate: false };
+        const testWithClass = { ...MOCK_PUBLIC_TEST, targetClasses: ['9А'] };
         testService.getPublicTest.mockResolvedValue(testWithClass);
         await showTestEntry({ params: { shareCode: 'ABCD1234' } });
         await flushPromises();
@@ -235,85 +235,16 @@ describe('testEntryView.js — TargetClass banner', () => {
         expect(main.textContent).toContain('9А');
     });
 
-    it('не показва banner когато targetClass е null', async () => {
+    it('не показва banner когато targetClasses е празен', async () => {
         vi.clearAllMocks();
         page.redirect.mockReset();
-        const testNoClass = { ...MOCK_PUBLIC_TEST, targetClass: null, requireEmailGate: false };
+        const testNoClass = { ...MOCK_PUBLIC_TEST, targetClasses: [] };
         testService.getPublicTest.mockResolvedValue(testNoClass);
         await showTestEntry({ params: { shareCode: 'ABCD1234' } });
         await flushPromises();
         const main = document.getElementById('main');
-        const banner = main.querySelector('.target-class-banner') ?? main.querySelector('[data-target-class]');
+        const banner = main.querySelector('.target-class-banner');
         expect(banner).toBeNull();
-    });
-});
-
-// ---------------------------------------------------------------------------
-// Email gate flow — Commit 2
-// ---------------------------------------------------------------------------
-
-describe('testEntryView.js — email gate (requireEmailGate=true)', () => {
-    const TEST_WITH_GATE = {
-        ...MOCK_PUBLIC_TEST,
-        requireEmailGate: true,
-        targetClass: '9А',
-    };
-
-    beforeEach(async () => {
-        vi.clearAllMocks();
-        page.redirect.mockReset();
-        sessionStorage.clear();
-        testService.getPublicTest.mockResolvedValue(TEST_WITH_GATE);
-        await showTestEntry({ params: { shareCode: 'ABCD1234' } });
-        await flushPromises();
-    });
-
-    it('показва email input при requireEmailGate=true', () => {
-        const main = document.getElementById('main');
-        const emailInput = main.querySelector('#participant-email')
-            ?? main.querySelector('input[type="email"]')
-            ?? main.querySelector('input[name="participantEmail"]');
-        expect(emailInput).not.toBeNull();
-    });
-
-    it('показва soft refusal при непознат имейл (404 от resolve-email)', async () => {
-        testService.resolveEmail = vi.fn().mockRejectedValue({ status: 404 });
-        const main = document.getElementById('main');
-        const emailInput = main.querySelector('#participant-email')
-            ?? main.querySelector('input[type="email"]')
-            ?? main.querySelector('input[name="participantEmail"]');
-        if (!emailInput) return; // skip ако нема email input
-
-        const form = main.querySelector('form');
-        emailInput.value = 'unknown@school.bg';
-        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-        await flushPromises();
-
-        // Soft refusal message трябва да е видимо
-        const hasRefusal = main.textContent.toLowerCase().includes('имейл') ||
-                           main.textContent.toLowerCase().includes('email') ||
-                           main.textContent.toLowerCase().includes('намер');
-        // Не е redirected
-        expect(page.redirect).not.toHaveBeenCalled();
-    });
-
-    it('при успешен resolve-email именото се попълва автоматично', async () => {
-        testService.resolveEmail = vi.fn().mockResolvedValue({ fullName: 'Иван Петров Иванов', className: '9А' });
-        const main = document.getElementById('main');
-        const emailInput = main.querySelector('#participant-email')
-            ?? main.querySelector('input[type="email"]')
-            ?? main.querySelector('input[name="participantEmail"]');
-        if (!emailInput) return;
-
-        emailInput.value = 'ivan.petrov@school.bg';
-        emailInput.dispatchEvent(new Event('blur'));
-        await flushPromises();
-
-        // Проверяваме дали fullName е показан или name input е попълнен
-        const nameInput = main.querySelector('#participant-name');
-        if (nameInput) {
-            expect(nameInput.value).toBe('Иван Петров Иванов');
-        }
     });
 });
 

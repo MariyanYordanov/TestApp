@@ -23,6 +23,8 @@ const makeClosedQuestion = (overrides = {}) => ({
     gradingStatus: 'NotApplicable',
     aiFeedback: null,
     aiScore: null,
+    points: 1,
+    pointsEarned: 1,
     ...overrides,
 });
 
@@ -38,6 +40,8 @@ const makeOpenQuestion = (overrides = {}) => ({
     gradingStatus: 'Pending',
     aiFeedback: null,
     aiScore: null,
+    points: 1,           // максимални точки (за score visualization)
+    pointsEarned: 0,
     ...overrides,
 });
 
